@@ -1,0 +1,27 @@
+/* a fixed 64dp toolbar and 88dp expansion keep scroll geometry stable */
+.ap-header.ah-header { height:64px;min-height:64px;padding:0 16px;overflow:hidden;z-index:3;display:block;flex:none;background:var(--ap-bg) }
+.ah-header>.ap-header-spacer { display:none }
+.ah-header>.ap-header-title { height:64px;display:flex;align-items:center;justify-content:space-between;gap:10px }
+.ah-header h2,.app-preview[data-style="material"] .ah-header h2 { min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:20px;line-height:26px;font-weight:600;letter-spacing:0;opacity:var(--ah-small-alpha,0) }
+.app-preview[data-style="material"] .ah-header h2 { font-weight:500 }
+.ah-header h2:focus-visible { opacity:1 }
+.ah-header>.ap-icon-button { position:absolute;left:4px;top:8px;width:48px;height:48px;margin:0 }
+.ah-header.ap-header--detail>.ap-header-title { padding-left:40px }
+.ah-header .al-top-actions { top:8px }
+.ah-header .ap-header-title>.ap-icon-button { margin-left:auto;flex:none }
+.ah-header--mode>.ap-header-title { justify-content:flex-start }
+.ah-header--mode h2 { flex:none;max-width:calc(100% - 46px) }
+.ah-expanded-title--mode>span { max-width:calc(100% - 46px) }
+.ap-scene>.ah-mode-action { position:absolute;left:0;top:0;z-index:4;width:36px;height:36px;margin:0;background:var(--ap-selected);border-radius:50%;will-change:transform,opacity }
+.ap-scene>.ah-mode-action>svg { width:20px;height:20px }
+.ap-scene>.ah-mode-action:focus-visible { opacity:1!important }
+.ap-scroll.ah-scroll { padding-top:0;overflow-anchor:none }
+.ah-expanded-title { display:flex;align-items:flex-start;flex:none;height:88px;min-height:88px;padding:36px 16px 20px;pointer-events:none;color:var(--ap-on) }
+.ah-expanded-title>span { font-size:26px;line-height:32px;font-weight:700;letter-spacing:-.014em;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;display:block;max-width:100% }
+.app-preview[data-style="material"] .ah-expanded-title { padding-bottom:16px }
+.app-preview[data-style="material"] .ah-expanded-title>span { font-size:28px;line-height:36px;font-weight:400;letter-spacing:0 }
+.ap-settings-content.ah-scroll>.ah-expanded-title,.ap-home-content.ah-scroll>.ah-expanded-title { padding-left:0;padding-right:0;margin-bottom:10px }
+.ah-home-content.ah-scroll>.ah-expanded-title,.ah-explore-content.ah-scroll>.ah-expanded-title { padding-left:0;padding-right:0 }
+.ah-header.ah-home-bar { padding-left:24px }
+
+.ah-header>.ah-home-refresh { left:auto;right:4px }

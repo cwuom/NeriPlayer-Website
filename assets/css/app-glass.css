@@ -1,0 +1,111 @@
+/* native chrome samples the scrolling page, not an opaque footer behind it */
+.np-glass-host {
+  --ng-radius: 36px;
+  --ng-saturation: 1.12;
+  --ng-mini-alpha: 22%;
+  --ng-nav-alpha: 48%;
+  --ng-bg: var(--h-bg, var(--fx-bg, var(--p-surface, #141218)));
+  --ng-on: var(--h-on, var(--fx-on, var(--p-on, #e6e0e9)));
+  --ng-accent: var(--h-primary, var(--fx-pri, var(--p-primary, #d2bcfd)));
+  --ng-on-secondary:var(--fx-onsec,#e8def8);
+  --ng-nav-tint: var(--ng-bg);
+  --ng-mini-tint: #4a4458;
+  --ng-edge: 7%;
+  --ng-pill: 12%;
+}
+.app-preview.np-glass-host { --ng-bg:var(--ap-bg);--ng-on:var(--ap-on);--ng-accent:var(--ap-accent);--ng-mini-tint:var(--ap-selected) }
+.ap-embedded-host.preview-device { --s:inherit }
+.ph.np-glass-host[data-app-style="clean"] { --ng-nav-tint:#1a1a1e;--ng-mini-tint:#1a1a1e }
+.app-preview.np-glass-host[data-style="clean"] { --ng-nav-tint:var(--ap-card);--ng-mini-tint:var(--ap-card) }
+.np-glass-host.is-light,.app-preview.np-glass-host[data-mode="light"] { --ng-mini-alpha:30%;--ng-nav-alpha:56%;--ng-pill:7%;--ng-on-secondary:#1d192b }
+.ph.np-glass-host[data-app-style="clean"].is-light { --ng-nav-tint:#fff;--ng-mini-tint:#fff }
+.np-glass-host[data-glass-liquid="off"] { --ng-mini-alpha:30%;--ng-nav-alpha:75%;--ng-edge:12%;--ng-saturation:1 }
+.np-glass-host.is-light[data-glass-liquid="off"],.app-preview.np-glass-host[data-mode="light"][data-glass-liquid="off"] { --ng-mini-alpha:36% }
+.np-glass-host[data-glass-background="on"]::before { content:"";position:absolute;inset:calc(-3 * var(--ng-background-blur));z-index:0;pointer-events:none;background-image:var(--ng-background-image);background-position:center;background-size:cover;filter:blur(var(--ng-background-blur));opacity:var(--ng-background-alpha) }
+.app-preview.np-glass-host[data-glass-background="on"] .ap-scene { background:transparent }
+
+.app-preview.np-glass-host .ap-page { position:relative;min-height:0;height:100% }
+.app-preview.np-glass-host .ap-scene { display:flex;flex-direction:column;flex:1;min-height:0 }
+.app-preview.np-glass-host .ap-scroll { padding-bottom:164px;scroll-padding-bottom:164px }
+.app-preview.np-glass-host .ap-bottom { position:absolute;inset:auto 0 0;padding-bottom:16px;background:none;z-index:5;pointer-events:none }
+.app-preview.np-glass-host .ap-bottom>* { pointer-events:auto }
+.app-preview.np-glass-host .ap-mini { margin:0 16px 6px;height:58px;border-radius:22px }
+.app-preview.np-glass-host .ap-nav { margin:0 16px;height:64px;padding:0 6px;border-radius:32px }
+.app-preview.np-glass-host[data-style="material"] .ap-bottom { padding-bottom:0 }
+.app-preview.np-glass-host[data-style="material"] .ap-mini { height:64px;margin:0 8px;border-radius:20px 20px 0 0 }
+.app-preview.np-glass-host[data-style="material"] .ap-nav { height:80px;margin:0;border-radius:0;padding:4px 8px }
+
+.ph.np-glass-host .hm-mini,.app-preview.np-glass-host .ap-mini {
+  background:color-mix(in srgb,var(--ng-mini-tint) var(--ng-mini-alpha),transparent);
+  -webkit-backdrop-filter:var(--ng-filter,blur(var(--ng-radius)) saturate(var(--ng-saturation)));
+  backdrop-filter:var(--ng-filter,blur(var(--ng-radius)) saturate(var(--ng-saturation)));
+  border:.5px solid color-mix(in srgb,var(--ng-on) 8%,transparent);
+  box-shadow:inset 0 .5px 0 color-mix(in srgb,var(--ng-on) 6%,transparent);
+}
+.ph.np-glass-host .hm-nav,.app-preview.np-glass-host .ap-nav {
+  background:color-mix(in srgb,var(--ng-nav-tint) var(--ng-nav-alpha),transparent);
+  -webkit-backdrop-filter:var(--ng-filter,blur(var(--ng-radius)) saturate(var(--ng-saturation)));
+  backdrop-filter:var(--ng-filter,blur(var(--ng-radius)) saturate(var(--ng-saturation)));
+  border:.5px solid color-mix(in srgb,var(--ng-on) var(--ng-edge),transparent);
+}
+.np-glass-host[data-app-style="clean"] .hm-nav,.app-preview.np-glass-host[data-style="clean"] .ap-nav {
+  box-shadow:0 6px 18px #0000004d,0 0 18px #0000000f,inset 0 .5px 0 #ffffff1a;
+  overflow:visible;
+}
+.np-glass-host[data-app-style="material"] .hm-nav,.app-preview.np-glass-host[data-style="material"] .ap-nav { border:0;border-top:.5px solid color-mix(in srgb,var(--ng-on) var(--ng-edge),transparent);box-shadow:none }
+/* 共享边缘由连续的背景绘制覆盖，避免分数像素处露出未模糊内容 */
+#phHome[data-app-style="material"] .hm-mini { overflow:visible;background:none;-webkit-backdrop-filter:none;backdrop-filter:none;border:0;box-shadow:none }
+#phHome[data-app-style="material"] .hm-mini::before { content:"";position:absolute;z-index:-1;inset:0 0 -1px;border-radius:inherit;pointer-events:none;background:color-mix(in srgb,var(--ng-mini-tint) var(--ng-mini-alpha),transparent);-webkit-backdrop-filter:var(--ng-filter,blur(var(--ng-radius)) saturate(var(--ng-saturation)));backdrop-filter:var(--ng-filter,blur(var(--ng-radius)) saturate(var(--ng-saturation)));box-shadow:inset 0 0 0 .5px color-mix(in srgb,var(--ng-on) 10%,transparent) }
+#phHome[data-app-style="material"] .hm-nav { border:0;box-shadow:none }
+#phHome[data-app-style="material"] .hm-nav::before { content:"";position:absolute;left:0;right:0;top:0;height:.5px;pointer-events:none;background:color-mix(in srgb,var(--ng-on) var(--ng-edge),transparent) }
+#phHome[data-app-style="material"][data-glass-blur="off"] .hm-mini::before { -webkit-backdrop-filter:none;backdrop-filter:none;background:color-mix(in srgb,var(--ng-nav-tint) 94%,transparent) }
+.np-glass-host .hm-nav .ng-label { font-size:inherit;line-height:inherit;font-weight:inherit }
+.ph.np-glass-host[data-app-style="clean"] .hm-nav>span { height:100%;padding:0;gap:0;justify-content:center;font-size:10.5px;line-height:14px;font-weight:500 }
+.ph.np-glass-host[data-app-style="clean"] .hm-nav>.is-on { padding:0;gap:0;font-weight:600 }
+.ph.np-glass-host[data-app-style="clean"] .hm-nav>span:not(.is-on) { color:color-mix(in srgb,var(--h-on) 72%,transparent) }
+.app-preview.np-glass-host[data-style="clean"] .ap-nav-item { gap:0 }
+.app-preview.np-glass-host[data-style="clean"] .ap-nav-item:not([aria-current="page"]) { color:color-mix(in srgb,var(--ap-on) 72%,transparent)!important }
+.app-preview.np-glass-host[data-style="clean"] .ap-nav-item>span { height:24px }
+.app-preview.np-glass-host[data-style="clean"] .ap-nav-item>small { font-size:10.5px;line-height:14px }
+.app-preview.np-glass-host[data-style="clean"] .ap-nav-item[aria-current="page"]>small { font-weight:600 }
+.np-glass-host[data-app-style="material"] .hm-nav>span { justify-content:center;height:80px;padding-top:0;gap:4px }
+.np-glass-host[data-app-style="material"] .hm-nav>.is-on { padding-top:0;color:var(--ng-on) }
+.np-glass-host[data-app-style="material"] .hm-nav>.is-on>svg { color:var(--ng-on-secondary) }
+.np-glass-host[data-app-style="material"][data-glass-new-tabs="on"] .hm-nav>span:not(.is-on)>.ng-label,.app-preview.np-glass-host[data-style="material"][data-glass-new-tabs="on"] .ap-nav-item:not([aria-current="page"])>small { display:none }
+.app-preview.np-glass-host[data-style="material"][data-glass-new-tabs="on"] .ap-nav-item[aria-current="page"]>span { background:none }
+.app-preview.np-glass-host[data-style="material"] .ap-nav-item[aria-current="page"] { color:var(--ap-on)!important }
+.app-preview.np-glass-host[data-style="material"] .ap-nav-item[aria-current="page"]>span { color:var(--ng-on-secondary) }
+.app-preview.np-glass-host[data-style="material"][data-glass-new-tabs="off"] .ap-nav-item[aria-current="page"]>span { background:color-mix(in srgb,var(--ap-selected) 72%,transparent) }
+.np-glass-host[data-app-style="material"][data-glass-new-tabs="off"] .hm-nav>.is-on::before { content:"";position:absolute;z-index:-1;left:50%;top:10px;width:64px;height:32px;transform:translateX(-50%);border-radius:16px;background:color-mix(in srgb,var(--ng-mini-tint) 72%,transparent) }
+.np-glass-host.is-light .hm-nav,.app-preview.np-glass-host[data-mode="light"] .ap-nav { box-shadow:0 6px 18px #0000001f,0 0 18px #0000000f,inset 0 .5px 0 #ffffffb3 }
+.np-glass-host[data-app-style="clean"] .hm-mini { bottom:calc(86px + 24px / var(--ui,1));height:58px;border-radius:22px }
+.np-glass-host .hm-scroll { height:100%;overflow-y:auto;overscroll-behavior:contain;scrollbar-width:none;padding-bottom:calc(164px + 24px / var(--ui,1));scroll-padding-bottom:164px }
+.np-glass-host .hm-scroll::-webkit-scrollbar { display:none }
+.ph.np-glass-host .fxa-scroll { bottom:calc(24px / var(--ui,1));scroll-padding-bottom:164px }
+.ph.np-glass-host .fxa-list { padding-bottom:calc(164px + 24px / var(--ui,1)) }
+.ph.np-glass-host::after { content:"";position:absolute;z-index:4;pointer-events:none;left:0;right:0;bottom:0;height:24px;background:var(--ng-bg) }
+.ng-nav svg { transform-origin:center }
+.app-preview.np-glass-host .ap-bottom::before { content:"";position:absolute;z-index:-1;pointer-events:none;left:0;right:0;bottom:0;height:16px;background:var(--ng-bg) }
+.ph.np-glass-host .ph__gesture { z-index:7 }
+
+.np-glass-host[data-glass-blur="off"] .hm-mini,.np-glass-host[data-glass-blur="off"] .hm-nav,.app-preview.np-glass-host[data-glass-blur="off"] .ap-mini,.app-preview.np-glass-host[data-glass-blur="off"] .ap-nav { -webkit-backdrop-filter:none;backdrop-filter:none;background:color-mix(in srgb,var(--ng-nav-tint) 94%,transparent) }
+.app-preview.np-glass-host[data-glass-enhanced="on"] .ap-card { -webkit-backdrop-filter:blur(var(--ng-radius));backdrop-filter:blur(var(--ng-radius));background:color-mix(in srgb,var(--ap-card) 56%,transparent);border:.5px solid color-mix(in srgb,var(--ap-on) 10%,transparent) }
+
+.app-preview .ap-nav.ng-nav { position:relative }
+.ng-nav>.ng-pill { position:absolute;z-index:0;pointer-events:none;left:0;top:4px;height:calc(100% - 8px);width:var(--ng-pill-width,80px);border-radius:100px;background:color-mix(in srgb,var(--ng-on) var(--ng-pill),transparent);translate:var(--ng-pill-x,0px) 0;transform-origin:center;transition:background 180ms,opacity 180ms }
+.ng-nav>.ng-pill:not(.is-ready) { visibility:hidden }
+.ng-nav>.ap-nav-item,.ng-nav>span { position:relative;z-index:1 }
+.app-preview.np-glass-host[data-style="clean"] .ap-nav.ng-nav>.ap-nav-item[aria-current="page"],.np-glass-host[data-app-style="clean"] .hm-nav.ng-nav>.is-on { background:transparent!important }
+.app-preview.np-glass-host[data-style="material"] .ap-nav.ng-nav>.ng-pill,.np-glass-host[data-app-style="material"] .hm-nav.ng-nav>.ng-pill { display:none }
+.ng-nav>.ng-pill.is-pressed { background:#ffffff14;box-shadow:inset 0 0 8px #00000026,0 6px 14px #00000057;border:1px solid #ffffff38 }
+.ng-nav>.ng-pill.is-pressed::after { content:"";position:absolute;inset:0;border-radius:inherit;border-top:1px solid #ffffff80;border-bottom:1px solid #ffffff4d;background:linear-gradient(#ffffff14,transparent 42%);pointer-events:none }
+.ng-nav .ng-lens-copy { position:absolute;top:-4px;height:64px;pointer-events:none;color:var(--ng-accent);visibility:hidden }
+.ng-nav>.ng-pill.is-pressed { overflow:hidden }
+.ng-nav>.ng-pill.is-pressed>.ng-lens-copy { visibility:visible }
+.ng-nav .ng-lens-copy>svg,.ng-nav .ng-lens-label { position:absolute;display:block;pointer-events:none;color:var(--ng-accent);background:none;box-sizing:border-box }
+.ng-nav .ng-lens-label { white-space:nowrap;text-align:center }
+.ng-nav.ng-dragging>.ap-nav-item,.ng-nav.ng-dragging>span { transition:color 120ms;touch-action:none }
+.ng-nav { touch-action:pan-y }
+@media (prefers-reduced-motion:reduce) { .ng-nav>.ng-pill { transition:none } }
+
+.np-glass-host[data-app-style="material"] .ng-nav>.ng-pill { display:none }

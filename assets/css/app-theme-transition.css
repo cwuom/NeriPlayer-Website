@@ -1,0 +1,9 @@
+/* reveal clipping remains inside the 411 by 914 dp app surface */
+[data-app-preview][data-at-switching]>.app-preview,[data-app-preview][data-at-switching]>.app-preview * { transition:none!important;animation:none!important }
+.app-preview.at-snapshot { z-index:4;pointer-events:none!important;contain:paint;will-change:mask-image,clip-path }
+.app-preview.at-snapshot[data-reverse="false"] { mask-image:radial-gradient(circle at var(--at-x) var(--at-y),transparent calc(var(--at-radius)*1px - .5px),#000 calc(var(--at-radius)*1px + .5px));-webkit-mask-image:radial-gradient(circle at var(--at-x) var(--at-y),transparent calc(var(--at-radius)*1px - .5px),#000 calc(var(--at-radius)*1px + .5px)) }
+.app-preview.at-snapshot[data-reverse="true"] { clip-path:circle(calc(var(--at-radius)*1px) at var(--at-x) var(--at-y)) }
+.app-preview .at-mode-button { width:36px;height:36px;min-width:36px;min-height:36px;border-radius:50%;background-color:var(--ap-theme-toggle-container,var(--ap-selected)) }
+.app-preview .at-mode-button:not(.ah-mode-action) { position:relative }
+.app-preview .at-mode-button .at-icon { position:absolute;inset:0;display:flex;align-items:center;justify-content:center;transform-origin:center;pointer-events:none }
+.app-preview .at-mode-button .at-icon svg { width:20px;height:20px;fill:currentColor }

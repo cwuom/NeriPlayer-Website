@@ -1,0 +1,43 @@
+name: NeriPlayer Website
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: true
+
+jobs:
+  deploy:
+    name: Deploy to GitHub Pages
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Configure Pages
+        uses: actions/configure-pages@v5
+
+      # 仅收集公开站点资源，生成工具和仓库文件不进入发布目录
+      - name: Collect site files
+        run: |
+          mkdir -p _site
+          cp -r index.html 404.html .nojekyll robots.txt site.webmanifest assets en _site/
+          if [ -f CNAME ]; then cp CNAME _site/; fi
+
+      - name: Upload artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: _site
+
+      - name: Deploy
+        id: deployment
+        uses: actions/deploy-pages@v4
