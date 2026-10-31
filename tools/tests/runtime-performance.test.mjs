@@ -34,6 +34,27 @@ function scrollFixture(initial = 0) {
   };
 }
 
+for (const initialHeight of [0, 800]) test(`forced font relayouts preserve callbacks without rewriting the unchanged ${initialHeight}px viewport`, () => {
+  const writes = [];
+  const document = {
+    documentElement: { lang: 'zh-CN', clientWidth: 1280, style: { setProperty: (...args) => writes.push(args) }, classList: { toggle() {} } },
+    body: {}, addEventListener() {},
+  };
+  const window = { innerHeight: initialHeight, innerWidth: 1280, matchMedia: () => ({ matches: false }), addEventListener() {} };
+  vm.runInNewContext(core, { window, document, requestAnimationFrame() {}, setTimeout() {}, clearTimeout() {} });
+  let callbacks = 0;
+  window.NP.onResize(() => callbacks++);
+  window.NP.measure(true);
+  window.NP.measure(true);
+  document.documentElement.clientWidth = 1000;
+  window.NP.measure(true);
+  assert.deepEqual(writes, [['--vh', initialHeight + 'px']]);
+  assert.equal(callbacks, 3, 'font changes and width changes still refresh every geometry consumer');
+  window.innerHeight = 1000;
+  window.NP.measure(true);
+  assert.deepEqual(writes, [['--vh', initialHeight + 'px'], ['--vh', '1000px']]);
+});
+
 test('idle scroll frames use the cached position without querying document geometry', () => {
   const fixture = scrollFixture(150);
   fixture.NP.smoothScroll.init();
@@ -192,6 +213,7 @@ test('without IntersectionObserver the chain remains animated and operable', asy
 
 test('real native scrolling, initial hash and history restoration stay synchronized with the cached state', async () => {
   await visit(async page => {
+    await page.waitForFunction(() => window.runtimePageShown);
     await page.waitForFunction(() => scrollY > 100 && Math.abs(NP.scroll.y - scrollY) < 1);
     await page.evaluate(() => history.replaceState(null, '', location.pathname));
     await page.evaluate(() => window.scrollTo(0, 1200));
@@ -200,8 +222,21 @@ test('real native scrolling, initial hash and history restoration stay synchroni
     await page.goto(base + '/en/', { waitUntil: 'domcontentloaded' });
     await page.waitForFunction(() => NP.baseReady);
     await page.goBack({ waitUntil: 'domcontentloaded' });
-    await page.waitForFunction(saved => NP.baseReady && Math.abs(NP.scroll.y - scrollY) < 1 && Math.abs(scrollY - saved) < 2, saved);
-    await page.evaluate(() => NP.scrollTo(300, true));
-    assert.equal(await page.evaluate(() => NP.scroll.y === scrollY && scrollY === 300), true);
-  }, { path: '/#download' });
+    // pageshow 前的位置可能只是历史恢复的中间状态，不能在浏览器恢复完成前发出新滚动
+    await page.waitForFunction(saved => window.runtimePageShown && NP.baseReady && Math.abs(NP.scroll.y - scrollY) < 1 && Math.abs(scrollY - saved) < 2, saved);
+    const immediate = await page.evaluate(() => {
+      NP.scrollTo(300, true);
+      return { cached: NP.scroll.y, actual: scrollY };
+    });
+    assert.deepEqual(immediate, { cached: 300, actual: 300 }, 'an instant scroll updates the cache before returning');
+    const nextFrame = await page.evaluate(() => new Promise(resolve => requestAnimationFrame(() => resolve({ cached: NP.scroll.y, actual: scrollY }))));
+    assert.deepEqual(nextFrame, { cached: 300, actual: 300 }, 'the settled history restoration must not overwrite the new scroll');
+  }, {
+    path: '/#download',
+    setup: page => page.addInitScript(() => {
+      window.runtimePageShown = false;
+      window.addEventListener('pageshow', () => { window.runtimePageShown = true; });
+      window.addEventListener('pagehide', () => { window.runtimePageShown = false; });
+    }),
+  });
 });

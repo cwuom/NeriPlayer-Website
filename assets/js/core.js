@@ -100,19 +100,22 @@
   var resizeFns = [];
   var lastW = 0;
   var lastH = 0;
+  var measured = false;
   NP.onResize = function (fn) { resizeFns.push(fn); };
   NP.measure = function (force) {
     var w = document.documentElement.clientWidth || window.innerWidth;
     var h = window.innerHeight;
     // 移动端地址栏伸缩只改变高度，小幅变化忽略，避免吸顶场景跳动
     if (!force && w === lastW && Math.abs(h - lastH) < 140) return;
+    var heightChanged = !measured || h !== lastH;
+    measured = true;
     lastW = w;
     lastH = h;
     vp.w = w;
     vp.h = h;
     vp.dpr = Math.min(window.devicePixelRatio || 1, 2);
     vp.mobile = w <= 900;
-    document.documentElement.style.setProperty('--vh', h + 'px');
+    if (heightChanged) document.documentElement.style.setProperty('--vh', h + 'px');
     for (var i = 0; i < resizeFns.length; i++) resizeFns[i](vp);
   };
   var resizeTimer = 0;

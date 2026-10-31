@@ -50,7 +50,10 @@ async function visit(run, fixture = false) {
 
 test('parallax measurement batches translate resets before geometry reads without changing the measured boxes', async () => {
   await visit(async page => {
-    const result = await page.evaluate(() => {
+    const result = await page.evaluate(async () => {
+      await document.fonts.ready;
+      // 页面现有过渡结束后再比较不同任务中的绝对坐标
+      await Promise.all(document.getAnimations().filter(animation => animation instanceof CSSTransition).map(animation => animation.finished.catch(() => {})));
       const targets = [...document.querySelectorAll('.sheet__num--xl, .sec-stats dd')];
       const rect = element => {
         const box = element.getBoundingClientRect();
@@ -64,6 +67,9 @@ test('parallax measurement batches translate resets before geometry reads withou
       const style = Object.getOwnPropertyDescriptor(HTMLElement.prototype, 'style');
       const proxies = new WeakMap();
       const geometry = Element.prototype.getBoundingClientRect;
+      let reads = 0;
+      let measured;
+      const complete = new Promise(resolve => { measured = resolve; });
       Object.defineProperty(HTMLElement.prototype, 'style', {
         ...style,
         get() {
@@ -86,10 +92,19 @@ test('parallax measurement batches translate resets before geometry reads withou
         },
       });
       Element.prototype.getBoundingClientRect = function (...args) {
-        if (elements.has(this)) events.push({ kind: 'read', index: elements.get(this) });
-        return geometry.apply(this, args);
+        const box = geometry.apply(this, args);
+        if (elements.has(this)) {
+          const index = elements.get(this);
+          events.push({ kind: 'read', index });
+          if (++reads === targets.length) measured();
+        }
+        return box;
       };
-      try { NP.measure(true); }
+      try {
+        NP.measure(true);
+        // 保留探针直到合并后的视差测量实际完成，再检查原有的写读顺序与几何
+        await complete;
+      }
       finally {
         Object.defineProperty(HTMLElement.prototype, 'style', style);
         Element.prototype.getBoundingClientRect = geometry;
@@ -102,7 +117,7 @@ test('parallax measurement batches translate resets before geometry reads withou
     const firstRead = result.events.findIndex(event => event.kind === 'read');
     assert.equal(firstRead, result.targets, 'all parallax resets must precede the first measured box instead of alternating writes and reads');
     for (let index = 0; index < result.targets; index++) {
-      for (const key of ['x', 'y', 'width', 'height']) assert.ok(Math.abs(result.actual[index][key] - result.expected[index][key]) < .1, `target ${index} ${key} must preserve its original measured geometry`);
+      for (const key of ['x', 'y', 'width', 'height']) assert.ok(Math.abs(result.actual[index][key] - result.expected[index][key]) < .1, `target ${index} ${key} must preserve its original measured geometry: ${JSON.stringify({ expected: result.expected[index], actual: result.actual[index] })}`);
     }
   });
 });

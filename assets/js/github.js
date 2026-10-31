@@ -101,7 +101,6 @@
       more.style.setProperty('--i', items.length);
       more.innerHTML = '<a href="' + url + '" target="_blank" rel="noopener">' + L('查看完整更新日志 ↗', 'Full changelog ↗') + '</a>';
       list.appendChild(more);
-      void list.offsetWidth;
       list.classList.remove('is-swap');
     };
     fadeList(list, build);
@@ -115,7 +114,6 @@
     if (!list) return;
     fadeList(list, function () {
       list.innerHTML = '<li class="changes__empty">' + L('暂时连不上 GitHub API，', 'GitHub API is unreachable right now. ') + '<a href="' + releases + '" target="_blank" rel="noopener">' + L('直接前往 Releases ↗', 'Go to Releases ↗') + '</a></li>';
-      void list.offsetWidth;
       list.classList.remove('is-swap');
     });
   }

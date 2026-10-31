@@ -89,11 +89,27 @@
   function setIndex(parent) {
     Array.prototype.forEach.call(parent.children, function (c, i) { c.style.setProperty('--i', i); });
   }
+  var decorationGroups = [];
+  function decorationRoot(el) { return el.closest('section, footer') || el; }
+  function planDecoration(el, apply) {
+    var root = decorationRoot(el);
+    var group = decorationGroups.filter(function (item) { return item.root === root; })[0];
+    if (!group) { group = { root: root, jobs: [], prepared: false }; decorationGroups.push(group); }
+    group.jobs.push(apply);
+  }
+  function prepareDecoration(group) {
+    if (group.prepared) return;
+    group.prepared = true;
+    group.jobs.forEach(function (apply) { apply(); });
+    group.jobs = [];
+  }
   function decorate() {
     $$('.h2, .footer__motto').forEach(function (h) {
-      h.removeAttribute('data-reveal');
-      h.setAttribute('data-split', '');
-      splitText(h);
+      planDecoration(h, function () {
+        h.removeAttribute('data-reveal');
+        h.setAttribute('data-split', '');
+        splitText(h);
+      });
     });
     $$('.display__line').forEach(function (line, i) {
       var inner = document.createElement('span');
@@ -102,31 +118,39 @@
       line.appendChild(inner);
       inner.style.setProperty('--i', i);
     });
-    $$('.sheet[data-reveal], .card[data-reveal], .note-card[data-reveal], .ticket[data-reveal]').forEach(function (el) { el.setAttribute('data-reveal', 'sheet'); });
+    $$('.sheet[data-reveal], .card[data-reveal], .note-card[data-reveal], .ticket[data-reveal]').forEach(function (el) { planDecoration(el, function () { el.setAttribute('data-reveal', 'sheet'); }); });
     $$('.tiles').forEach(function (t) {
-      $$('[data-reveal]', t).forEach(function (li) { li.removeAttribute('data-reveal'); });
-      t.setAttribute('data-stagger', 'pop');
-      setIndex(t);
+      planDecoration(t, function () {
+        $$('[data-reveal]', t).forEach(function (li) { li.removeAttribute('data-reveal'); });
+        t.setAttribute('data-stagger', 'pop');
+        setIndex(t);
+      });
     });
-    $$('.chain__nodes, .crayons').forEach(function (t) { t.setAttribute('data-stagger', 'pop'); setIndex(t); });
+    $$('.chain__nodes, .crayons').forEach(function (t) { planDecoration(t, function () { t.setAttribute('data-stagger', 'pop'); setIndex(t); }); });
     $$('.notes, .checklist, .stor-legend, .flow__steps, .ticket__info, .tree, .shortcut__menu, .dash__menu, .matrix tbody, .abi tbody, .changes, .split-demo__out, .palette, .footer__cols').forEach(function (t) {
-      if (t.closest('[data-stagger]') && t.closest('[data-stagger]') !== t) return;
-      t.setAttribute('data-stagger', t.matches('.split-demo__out, .palette') ? 'pop' : '');
-      setIndex(t);
+      planDecoration(t, function () {
+        if (t.closest('[data-stagger]') && t.closest('[data-stagger]') !== t) return;
+        t.setAttribute('data-stagger', t.matches('.split-demo__out, .palette') ? 'pop' : '');
+        setIndex(t);
+      });
     });
-    $$('.sec-stats').forEach(function (s) { s.removeAttribute('data-reveal'); s.setAttribute('data-stagger', 'x'); s.style.setProperty('--base', '380ms'); setIndex(s); });
-    $$('.stamp').forEach(function (s) { s.setAttribute('data-stamp', ''); });
+    $$('.sec-stats').forEach(function (s) { planDecoration(s, function () { s.removeAttribute('data-reveal'); s.setAttribute('data-stagger', 'x'); s.style.setProperty('--base', '380ms'); setIndex(s); }); });
+    $$('.stamp').forEach(function (s) { planDecoration(s, function () { s.setAttribute('data-stamp', ''); }); });
     $$('.hand--note, .hero__note, .shots__note, .sketch__a, .flow__note, .syncmap__note, .stats__label, .widgets__note, .tabstage__note, .cutline .hand, .footer__brand .hand, .tree em, .ruby-fig__label').forEach(function (h, i) {
-      h.setAttribute('data-write', '');
-      h.style.setProperty('--wd', (i % 3) * 120);
+      planDecoration(h, function () {
+        h.setAttribute('data-write', '');
+        h.style.setProperty('--wd', (i % 3) * 120);
+      });
     });
+    decorationGroups.forEach(function (group) { if (group.root.classList.contains('hero')) prepareDecoration(group); });
   }
 
   /* ---------- 进入视口 ---------- */
   function observe() {
-    var els = $$('[data-reveal], [data-stagger], [data-split], [data-write], [data-stamp], .eyebrow, .draw, .ul');
+    var selector = '[data-reveal], [data-stagger], [data-split], [data-write], [data-stamp], .eyebrow, .draw, .ul';
     if (!('IntersectionObserver' in window) || reduced) {
-      els.forEach(function (el) { el.classList.add('is-in'); });
+      decorationGroups.forEach(prepareDecoration);
+      $$(selector).forEach(function (el) { el.classList.add('is-in'); });
       return;
     }
     var io = new IntersectionObserver(function (entries) {
@@ -138,7 +162,34 @@
         io.unobserve(el);
       });
     }, { rootMargin: '0px 0px -10% 0px', threshold: 0.01 });
-    els.forEach(function (el) { io.observe(el); });
+    function register(root) {
+      if (root.matches(selector)) io.observe(root);
+      $$(selector, root).forEach(function (el) { io.observe(el); });
+    }
+    var near = new IntersectionObserver(function (entries) {
+      var prepared = [];
+      entries.forEach(function (entry) {
+        if (!entry.isIntersecting) return;
+        var group = decorationGroups.filter(function (item) { return item.root === entry.target; })[0];
+        if (!group || group.prepared) return;
+        prepareDecoration(group);
+        prepared.push(group);
+        near.unobserve(group.root);
+      });
+      if (!prepared.length) return;
+      // 跳到远处时也先绘制拆分后的初始状态，下一帧再触发原来的入场过渡
+      requestAnimationFrame(function () { setTimeout(function () {
+        prepared.forEach(function (group) { register(group.root); });
+        queueMeasure();
+      }, 0); });
+    }, { rootMargin: '1200px 0px' });
+    decorationGroups.forEach(function (group) {
+      if (group.prepared) register(group.root);
+      else near.observe(group.root);
+    });
+    $$(selector).forEach(function (el) {
+      if (!decorationGroups.some(function (group) { return group.root === decorationRoot(el); })) io.observe(el);
+    });
   }
 
   /* ---------- 滚动联动 ---------- */
@@ -149,6 +200,17 @@
   var tilts = [];
   var srcProg = null;
   var pointer = { x: 0, y: 0, tx: 0, ty: 0 };
+  var scrollReady = false;
+  var measureQueued = false;
+  function queueMeasure() {
+    if (!scrollReady || measureQueued) return;
+    measureQueued = true;
+    requestAnimationFrame(function () { setTimeout(function () {
+      measureQueued = false;
+      measure();
+      lastY = -1;
+    }, 0); });
+  }
 
   function measure() {
     parallax.forEach(function (p) { p.el.style.translate = ''; });
@@ -301,14 +363,15 @@
         route: $('#route'),
       };
     }
-    NP.onResize(function () { measure(); lastY = -1; });
-    window.addEventListener('load', function () { measure(); lastY = -1; });
-    if (document.fonts && document.fonts.ready) document.fonts.ready.then(function () { measure(); lastY = -1; });
+    NP.onResize(queueMeasure);
+    window.addEventListener('load', queueMeasure);
+    if (document.fonts && document.fonts.ready) document.fonts.ready.then(queueMeasure);
     if (window.ResizeObserver) {
       var t = 0;
-      new ResizeObserver(function () { clearTimeout(t); t = setTimeout(function () { measure(); lastY = -1; }, 150); }).observe(document.body);
+      new ResizeObserver(function () { clearTimeout(t); t = setTimeout(queueMeasure, 150); }).observe(document.body);
     }
     measure();
+    scrollReady = true;
     NP.addFrame(frame, 3);
   }
 
@@ -451,35 +514,49 @@
   /* ---------- 分段选择的滑块 ---------- */
   function initSegs() {
     $$('.seg').forEach(function (seg) {
-      var ind = document.createElement('span');
-      ind.className = 'seg__ind';
-      ind.setAttribute('aria-hidden', 'true');
-      seg.insertBefore(ind, seg.firstChild);
-      seg.classList.add('has-ind');
-      var lastGeometry = '';
-      function place(jump) {
-        var on = $('button.is-on', seg);
-        var width = on ? on.offsetWidth : 0;
-        if (!width) { ind.hidden = true; lastGeometry = ''; return; }
-        var height = on.offsetHeight, left = on.offsetLeft, top = on.offsetTop;
-        var geometry = [width, height, left, top].join(',');
-        if (geometry === lastGeometry && !ind.hidden) return;
-        lastGeometry = geometry;
-        ind.hidden = false;
-        if (jump) ind.classList.add('is-jump');
-        ind.style.width = width + 'px';
-        ind.style.height = height + 'px';
-        ind.style.translate = left + 'px ' + top + 'px';
-        if (jump) { void ind.offsetWidth; ind.classList.remove('is-jump'); }
+      var active = false;
+      function activate() {
+        if (active) return;
+        active = true;
+        seg.removeEventListener('pointerdown', activate, true);
+        seg.removeEventListener('focusin', activate, true);
+        seg.removeEventListener('click', activate, true);
+        var ind = document.createElement('span');
+        ind.className = 'seg__ind';
+        ind.setAttribute('aria-hidden', 'true');
+        seg.insertBefore(ind, seg.firstChild);
+        seg.classList.add('has-ind');
+        var lastGeometry = '';
+        function place(jump) {
+          var on = $('button.is-on', seg);
+          var width = on ? on.offsetWidth : 0;
+          if (!width) { ind.hidden = true; lastGeometry = ''; return; }
+          var height = on.offsetHeight, left = on.offsetLeft, top = on.offsetTop;
+          var geometry = [width, height, left, top].join(',');
+          if (geometry === lastGeometry && !ind.hidden) return;
+          lastGeometry = geometry;
+          ind.hidden = false;
+          if (jump) ind.classList.add('is-jump');
+          ind.style.width = width + 'px';
+          ind.style.height = height + 'px';
+          ind.style.translate = left + 'px ' + top + 'px';
+          if (jump) { void ind.offsetWidth; ind.classList.remove('is-jump'); }
+        }
+        new MutationObserver(function (records) {
+          // 跳转标记不改变按钮几何，避免滑块响应自己的 class 写入
+          if (records.some(function (record) { return record.target !== ind; })) place(false);
+        }).observe(seg, { subtree: true, attributes: true, attributeFilter: ['class'] });
+        place(true);
+        NP.onResize(function () { place(true); });
+        // 已完成的字体不再排跳转校准，避免覆盖首击刚开始的滑动
+        if (document.fonts && document.fonts.ready && document.fonts.status !== 'loaded') document.fonts.ready.then(function () { place(true); });
+        NP.whenVisible(seg, function () { place(true); });
       }
-      new MutationObserver(function (records) {
-        // 跳转标记不改变按钮几何，避免滑块响应自己的 class 写入
-        if (records.some(function (record) { return record.target !== ind; })) place(false);
-      }).observe(seg, { subtree: true, attributes: true, attributeFilter: ['class'] });
-      place(true);
-      NP.onResize(function () { place(true); });
-      if (document.fonts && document.fonts.ready) document.fonts.ready.then(function () { place(true); });
-      NP.whenVisible(seg, function () { place(true); });
+      // 首次输入可能早于可见性回调，先定位旧选中项再让按钮响应
+      seg.addEventListener('pointerdown', activate, true);
+      seg.addEventListener('focusin', activate, true);
+      seg.addEventListener('click', activate, true);
+      NP.whenVisible(seg, activate, null, '1200px 0px');
     });
   }
 
