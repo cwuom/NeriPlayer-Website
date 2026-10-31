@@ -51,7 +51,7 @@ for (const path of ['/', '/en/']) test('full content fonts never replace the fir
     assert.match(await page.locator('.hero .lead').evaluate(el => getComputedStyle(el).fontFamily), /MiSans Critical/);
     assert.match(await page.locator('.hero h1').evaluate(el => getComputedStyle(el).fontFamily), /NP Serif Critical/);
     assert.match(await page.locator('.hero__note').evaluate(el => getComputedStyle(el).fontFamily), /NP Hand Critical/);
-    assert.match(await page.locator('.hero h1').evaluate(el => getComputedStyle(el).fontFamily), /^"?Fraunces Critical/);
+    assert.ok((await page.locator('.hero h1').evaluate(el => getComputedStyle(el).fontFamily)).startsWith('"' + (path === '/' ? 'Fraunces Hero ZH' : 'Fraunces Critical') + '",'));
     assert.match(await page.locator('.hero__note').evaluate(el => getComputedStyle(el).fontFamily), /^"?Caveat Critical/);
     const before = await heroFonts(page, cdp);
     const box = await page.locator('.hero .lead').boundingBox();

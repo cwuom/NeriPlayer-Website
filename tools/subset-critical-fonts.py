@@ -32,8 +32,10 @@ FACES = {
     "caveat": ("Caveat", "400 700", None),
     "fraunces-zh": ("Fraunces", "100 900", "normal"),
     "fraunces-italic-zh": ("Fraunces", "100 900", "italic"),
+    "fraunces-hero-zh": ("Fraunces", "100 900", "normal"),
+    "fraunces-hero-italic-zh": ("Fraunces", "100 900", "italic"),
 }
-CRITICAL_ALIASES = {"fraunces": "Fraunces Critical", "fraunces-italic": "Fraunces Critical", "caveat": "Caveat Critical", "np-serif": "NP Serif Critical", "np-hand": "NP Hand Critical", "fraunces-zh": "Fraunces Critical ZH", "fraunces-italic-zh": "Fraunces Critical ZH"}
+CRITICAL_ALIASES = {"fraunces": "Fraunces Critical", "fraunces-italic": "Fraunces Critical", "caveat": "Caveat Critical", "np-serif": "NP Serif Critical", "np-hand": "NP Hand Critical", "fraunces-zh": "Fraunces Critical ZH", "fraunces-italic-zh": "Fraunces Critical ZH", "fraunces-hero-zh": "Fraunces Hero ZH", "fraunces-hero-italic-zh": "Fraunces Hero ZH"}
 GEIST_FACES = [
     '@font-face { font-family: "Geist"; src: url("../fonts/geist.woff2") format("woff2"); font-weight: 100 900; font-display: swap; }',
     '@font-face { font-family: "Geist Mono"; src: url("../fonts/geist-mono.woff2") format("woff2"); font-weight: 100 900; font-display: swap; }',
@@ -46,6 +48,7 @@ class CriticalText(HTMLParser):
         super().__init__(convert_charrefs=True)
         self.stack = []
         self.text = []
+        self.normal = []
         self.italic = []
         self.hand = []
 
@@ -75,6 +78,8 @@ class CriticalText(HTMLParser):
             self.text.append(data)
             if any(item[0] == "em" for item in self.stack):
                 self.italic.append(data)
+            else:
+                self.normal.append(data)
 
 
 def critical_role_points():
@@ -102,6 +107,12 @@ def chinese_italic_points():
     parser.feed((ROOT / "index.html").read_text(encoding="utf-8"))
     # 保留真实空格字形和原字体 metrics，空 cmap 会被浏览器拒绝
     return {0x20} | {ord(character) for character in "".join(parser.italic) if ord(character) in ASCII}
+
+
+def chinese_normal_points():
+    parser = CriticalText()
+    parser.feed((ROOT / "index.html").read_text(encoding="utf-8"))
+    return {0x20} | {ord(character) for character in "".join(parser.normal) if ord(character) in ASCII}
 
 
 def is_cjk(point):
@@ -188,7 +199,7 @@ def update_css(jobs, check):
     path = ROOT / "assets" / "css" / "base.css"
     css = path.read_text(encoding="utf-8")
     faces = list(re.finditer(r'^@font-face \{[^\n]+\}\n', css, re.MULTILINE))
-    if not faces or len(faces) not in {7, 10, 11, 13}:
+    if not faces or len(faces) not in {7, 10, 11, 13, 15}:
         raise ValueError("Expected the existing base font declarations")
     start, end = faces[0].start(), faces[-1].end()
     assert css[start:end] == "".join(item.group() for item in faces), "only the contiguous font-face block may change"
@@ -295,6 +306,11 @@ def run(check, fallback_only=False):
         points = chinese_italic_points()
         target = build_immutable(source, "fraunces-italic-zh", points, check, critical=True)
         jobs.append(("fraunces-italic-zh", target, points))
+        jobs.append(("fraunces-hero-italic-zh", target, points))
+        source = registered_faces("content-fonts.css", "Fraunces", "100 900", "normal")[0][1]
+        points = chinese_normal_points()
+        target = build_immutable(source, "fraunces-hero-zh", points, check, critical=True)
+        jobs.insert(-1, ("fraunces-hero-zh", target, points))
     else:
         for name in FACES:
             family = CRITICAL_ALIASES[name]

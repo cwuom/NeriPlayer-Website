@@ -595,9 +595,11 @@
     var h1 = $('.hero h1');
     if (document.fonts && document.fonts.load && h1) {
       var family = 'Fraunces Critical';
+      var scoped = document.documentElement.hasAttribute('data-hero-serif');
       // 缓存的旧 HTML 没有中文别名，仍等待它实际使用的字体
       if (!NP.en && document.fonts.forEach) document.fonts.forEach(function (face) {
-        if (face.family.replace(/["']/g, '') === 'Fraunces Critical ZH') family = 'Fraunces Critical ZH';
+        var name = face.family.replace(/["']/g, '');
+        if ((scoped && name === 'Fraunces Hero ZH') || (name === 'Fraunces Critical ZH' && family !== 'Fraunces Hero ZH')) family = name;
       });
       var sample = (h1.textContent || 'NeriPlayer').replace(/\s+/g, '').slice(0, 24);
       Promise.all([

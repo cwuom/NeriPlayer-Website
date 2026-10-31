@@ -35,7 +35,7 @@ async function heldPage(holdFonts = false) {
     pending.push(task);
     return task;
   });
-  if (holdFonts) await page.route(/\/(?:fraunces(?:-italic)?(?:-zh)?|np-serif)(?:-[a-f0-9]{12})?-critical\.woff2(?:\?.*)?$/, route => {
+  if (holdFonts) await page.route(/\/(?:fraunces(?:-hero)?(?:-italic)?(?:-zh)?|np-serif)(?:-[a-f0-9]{12})?-critical\.woff2(?:\?.*)?$/, route => {
     const task = fonts.promise.then(() => route.continue());
     pending.push(task);
     return task;

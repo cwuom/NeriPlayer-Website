@@ -6,7 +6,7 @@ import { fileURLToPath } from 'node:url';
 
 const root = new URL('../', import.meta.url);
 const sourceNames = ['base', 'sections', 'motion'];
-const families = new Set(['Fraunces', 'Fraunces Critical', 'Fraunces Critical ZH', 'NP Serif', 'NP Serif Critical', 'NP Hand', 'NP Hand Critical', 'Caveat', 'Caveat Critical', 'Geist', 'Geist Mono', 'MiSans', 'MiSans Critical']);
+const families = new Set(['Fraunces', 'Fraunces Critical', 'Fraunces Critical ZH', 'Fraunces Hero ZH', 'NP Serif', 'NP Serif Critical', 'NP Hand', 'NP Hand Critical', 'Caveat', 'Caveat Critical', 'Geist', 'Geist Mono', 'MiSans', 'MiSans Critical']);
 const components = /^(hero|nav|menu|route|crayon|cr|doodle|lamp|signals|eyebrow|display|ul|btn|fig)(?:$|__|--)/;
 const utilities = new Set(['wrap', 'lead', 'small', 'hand', 'mono', 'i', 'draw', 'sprite', 'skip', 'sr-only', 'lamp-glow', 'swap-text', 'img-fade', 'img-wait', 'dl-in', 'js', 'no-js', 'np-fallback']);
 const grouping = /^@(media|supports|container|layer)\b/i;
@@ -266,17 +266,18 @@ export function syncCriticalFontPreloads(html, css) {
   }
   const cjk = source('MiSans Critical', 400);
   const hasChineseSerif = faces.some(rule => rule.body.includes('font-family:"Fraunces Critical ZH";'));
+  const hasHeroSerif = faces.some(rule => rule.body.includes('font-family:"Fraunces Hero ZH";'));
   let foundCjk = false;
-  const output = html.replace(/<link\b[^>]*\bdata-hero-cjk\b[^>]*>\n?/g, tag => {
+  const output = html.replace(/<html\b[^>]*>/, tag => hasHeroSerif ? tag.replace(/\sdata-hero-serif="[^"]*"/g, '').replace(/>$/, ' data-hero-serif="zh">') : tag).replace(/<link\b[^>]*\bdata-hero-cjk\b[^>]*>\n?/g, tag => {
     if (foundCjk) return '';
     foundCjk = true;
     return tag.replace(/href="[^"]+"/, `href="${cjk}"`);
-  }).replace(/<link\b[^>]*href="assets\/fonts\/(fraunces(?:-italic)?(?:-zh)?|np-serif|np-hand|caveat)(?:-[a-f0-9]+)?-critical\.woff2"[^>]*>/g, (tag, role) => {
-    const base = role.replace(/-zh$/, '');
-    const family = base.startsWith('fraunces') && hasChineseSerif ? 'Fraunces Critical ZH' : { fraunces: 'Fraunces Critical', 'fraunces-italic': 'Fraunces Critical', 'np-serif': 'NP Serif Critical', 'np-hand': 'NP Hand Critical', caveat: 'Caveat Critical' }[base];
+  }).replace(/<link\b[^>]*href="assets\/fonts\/(fraunces(?:-hero)?(?:-italic)?(?:-zh)?|np-serif|np-hand|caveat)(?:-[a-f0-9]+)?-critical\.woff2"[^>]*>/g, (tag, role) => {
+    const base = role.replace(/-zh$/, '').replace('-hero', '');
+    const family = base.startsWith('fraunces') && hasHeroSerif ? 'Fraunces Hero ZH' : base.startsWith('fraunces') && hasChineseSerif ? 'Fraunces Critical ZH' : { fraunces: 'Fraunces Critical', 'fraunces-italic': 'Fraunces Critical', 'np-serif': 'NP Serif Critical', 'np-hand': 'NP Hand Critical', caveat: 'Caveat Critical' }[base];
     const style = base.startsWith('fraunces') ? (base.endsWith('italic') ? 'italic' : 'normal') : null;
     const updated = tag.replace(/href="[^"]+"/, `href="${source(family, null, style)}"`).replace(/\sdata-hero-en-font="[^"]*"/g, '');
-    return hasChineseSerif && base === 'fraunces-italic' ? updated.replace(/>$/, ` data-hero-en-font="${source('Fraunces Critical', null, 'italic')}">`) : updated;
+    return (hasChineseSerif || hasHeroSerif) && base.startsWith('fraunces') ? updated.replace(/>$/, ` data-hero-en-font="${source('Fraunces Critical', null, style)}">`) : updated;
   });
   if (!foundCjk) throw new Error('Critical CJK font preload not found');
   return output;

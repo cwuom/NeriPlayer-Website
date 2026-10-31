@@ -112,7 +112,7 @@ async function snapshot(page) {
 }
 
 function baselineFont(entry) {
-  const aliases = { '.nav__name': ['Fraunces Critical ZH', 'Fraunces Critical'], '.hero .display': ['Fraunces Critical ZH', 'Fraunces Critical'], '.hero__note': ['Caveat Critical'], '.hero__scroll': ['Caveat Critical'] };
+  const aliases = { '.nav__name': ['Fraunces Hero ZH', 'Fraunces Critical ZH', 'Fraunces Critical'], '.hero .display': ['Fraunces Hero ZH', 'Fraunces Critical ZH', 'Fraunces Critical'], '.hero__note': ['Caveat Critical'], '.hero__scroll': ['Caveat Critical'] };
   const alias = aliases[entry.selector];
   // 仅这四个固定角色的独立子集已逐字形和 shaping 验证等价，其他 family 仍逐字比较
   if (!alias) return entry.font;

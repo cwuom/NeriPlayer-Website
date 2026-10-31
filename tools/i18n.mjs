@@ -151,6 +151,7 @@ if (cmd === 'extract') {
     document.querySelectorAll('img[src*="-zh."]').forEach((img) => { if (d.swap.includes(img.getAttribute('src'))) img.setAttribute('src', img.getAttribute('src').replace('-zh.', '-en.')); });
     const doc = document.documentElement;
     doc.lang = 'en';
+    doc.removeAttribute('data-hero-serif');
     doc.querySelectorAll('link[data-hero-cjk]').forEach(link => link.remove());
     doc.querySelectorAll('link[data-hero-en-font]').forEach(link => {
       link.setAttribute('href', link.getAttribute('data-hero-en-font'));

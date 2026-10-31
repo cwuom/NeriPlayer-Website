@@ -43,7 +43,8 @@ for (const language of ['/', '/en/']) {
         assert.ok(!fonts.includes(name), `${name} must wait until its content is nearby`);
       }
       const heroFonts = await fontNames(['base.css']);
-      const titleFont = heroFonts.find(name => /^fraunces-[a-f0-9]{12}-critical\.woff2$/.test(name));
+      const titlePattern = language === '/' ? /^fraunces-hero-zh-[a-f0-9]{12}-critical\.woff2$/ : /^fraunces-[a-f0-9]{12}-critical\.woff2$/;
+      const titleFont = heroFonts.find(name => titlePattern.test(name));
       assert.ok(titleFont, 'the actual normal title alias must be registered');
       assert.ok(fonts.includes(titleFont), titleFont + ' must draw the title');
       const before = await page.locator('.hero h1').boundingBox();

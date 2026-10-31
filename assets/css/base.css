@@ -9,6 +9,8 @@
 @font-face { font-family: "Caveat Critical"; src: url("../fonts/caveat-8f7e8778d00e-critical.woff2") format("woff2"); font-weight: 400 700; font-display: swap; }
 @font-face { font-family: "Fraunces Critical ZH"; src: url("../fonts/fraunces-6dc3b85ae96f-critical.woff2") format("woff2"); font-weight: 100 900; font-style: normal; font-display: swap; }
 @font-face { font-family: "Fraunces Critical ZH"; src: url("../fonts/fraunces-italic-zh-e17442fd71ea-critical.woff2") format("woff2"); font-weight: 100 900; font-style: italic; font-display: swap; }
+@font-face { font-family: "Fraunces Hero ZH"; src: url("../fonts/fraunces-hero-zh-dd3003ae8cb8-critical.woff2") format("woff2"); font-weight: 100 900; font-style: normal; font-display: swap; }
+@font-face { font-family: "Fraunces Hero ZH"; src: url("../fonts/fraunces-italic-zh-e17442fd71ea-critical.woff2") format("woff2"); font-weight: 100 900; font-style: italic; font-display: swap; }
 @font-face { font-family: "MiSans Critical"; src: url("../fonts/misans-400-ba217028279c-critical.woff2") format("woff2"); font-weight: 400; font-display: swap; }
 @font-face { font-family: "MiSans Critical"; src: url("../fonts/misans-500-1e96e8e368e2-critical.woff2") format("woff2"); font-weight: 500; font-display: swap; }
 @font-face { font-family: "MiSans Critical"; src: url("../fonts/misans-600-bc0b5e1c2f5e-critical.woff2") format("woff2"); font-weight: 600; font-display: swap; }
@@ -99,6 +101,10 @@ body {
 
 body:lang(zh) {
   --serif: "Fraunces Critical ZH", "NP Serif Critical", "Songti SC", "STSong", "Noto Serif SC", "Source Han Serif SC", serif;
+}
+
+html.js[data-hero-serif] body:lang(zh) .hero, html.js[data-hero-serif] body:lang(zh) .nav, html.js[data-hero-serif] body:lang(zh) .menu {
+  --serif: "Fraunces Hero ZH", "NP Serif Critical", "Songti SC", "STSong", "Noto Serif SC", "Source Han Serif SC", serif;
 }
 
 .station[data-fonts-preparing], .station[data-fonts-ready], .footer[data-fonts-preparing], .footer[data-fonts-ready], .no-js body {

@@ -10,24 +10,29 @@ const source = await read('assets/js/motion.js');
 const startHero = /  function startHero\(\) \{[\s\S]*?(?=\n  var heroInitialized)/.exec(source)?.[0];
 assert.ok(startHero, 'exercise the actual hero startup function');
 
-async function startup({ english = false, chineseFace = true, iterable = true, pending = false } = {}) {
+async function startup({ english = false, chineseFace = true, heroFace = true, scoped = true, heroFirst = false, iterable = true, pending = false } = {}) {
   const calls = [], timers = [], reveals = [], classes = [];
   const fonts = { load(font, text) { calls.push({ font, text }); return pending ? new Promise(() => {}) : Promise.resolve([]); } };
   if (iterable) fonts.forEach = callback => {
+    if (heroFace && heroFirst) callback({ family: 'Fraunces Hero ZH' });
     callback({ family: 'Fraunces Critical' });
     if (chineseFace) callback({ family: 'Fraunces Critical ZH' });
+    if (heroFace && !heroFirst) callback({ family: 'Fraunces Hero ZH' });
   };
   const hero = { classList: { add(value) { classes.push(value); } } };
-  const context = vm.createContext({ NP: { en: english }, document: { fonts }, $: selector => selector === '.hero h1' ? { textContent: '多源在线，本地优先，从掌心到桌面' } : hero, observe: value => reveals.push(value), requestAnimationFrame: callback => callback(), setTimeout: (callback, delay) => timers.push({ callback, delay }) });
+  const context = vm.createContext({ NP: { en: english }, document: { fonts, documentElement: { hasAttribute: () => scoped } }, $: selector => selector === '.hero h1' ? { textContent: '多源在线，本地优先，从掌心到桌面' } : hero, observe: value => reveals.push(value), requestAnimationFrame: callback => callback(), setTimeout: (callback, delay) => timers.push({ callback, delay }) });
   vm.runInContext(startHero + '\nstartHero();', context);
   await new Promise(resolve => setImmediate(resolve));
   return { calls, timers, reveals, classes };
 }
 
 for (const scenario of [
-  { name: 'Chinese entry', options: {}, family: 'Fraunces Critical ZH' },
+  { name: 'Chinese entry', options: {}, family: 'Fraunces Hero ZH' },
+  { name: 'Chinese faces registered in reverse order', options: { heroFirst: true }, family: 'Fraunces Hero ZH' },
   { name: 'English entry', options: { english: true }, family: 'Fraunces Critical' },
-  { name: 'cached old Chinese HTML', options: { chineseFace: false }, family: 'Fraunces Critical' },
+  { name: 'cached Chinese HTML with new full CSS', options: { scoped: false }, family: 'Fraunces Critical ZH' },
+  { name: 'cached Chinese HTML without hero face', options: { heroFace: false, scoped: false }, family: 'Fraunces Critical ZH' },
+  { name: 'cached oldest Chinese HTML', options: { chineseFace: false, heroFace: false, scoped: false }, family: 'Fraunces Critical' },
   { name: 'older font loading implementation', options: { iterable: false }, family: 'Fraunces Critical' },
 ]) test('hero font barrier uses matching registered faces for ' + scenario.name, async () => {
   const result = await startup(scenario.options);
@@ -56,11 +61,16 @@ test('Chinese aliases retain the normal font and expose an explicit English ital
     return /url\("([^" ]+)"\)/.exec(face)[1].replace('../fonts/', 'assets/fonts/');
   };
   assert.equal(sourceFor('Fraunces Critical ZH', false), sourceFor('Fraunces Critical', false));
+  assert.notEqual(sourceFor('Fraunces Hero ZH', false), sourceFor('Fraunces Critical ZH', false));
+  assert.equal(sourceFor('Fraunces Hero ZH', true), sourceFor('Fraunces Critical ZH', true));
   assert.notEqual(sourceFor('Fraunces Critical ZH', true), sourceFor('Fraunces Critical', true));
-  const html = '<link rel="preload" href="assets/fonts/fraunces-italic-critical.woff2" as="font" crossorigin>\n<link rel="preload" href="assets/fonts/misans-400-critical.woff2" as="font" data-hero-cjk>\n';
+  const html = '<html lang="zh-CN"><head><link rel="preload" href="assets/fonts/fraunces-critical.woff2" as="font" crossorigin>\n<link rel="preload" href="assets/fonts/fraunces-italic-critical.woff2" as="font" crossorigin>\n<link rel="preload" href="assets/fonts/misans-400-critical.woff2" as="font" data-hero-cjk>\n</head></html>';
   const output = syncCriticalFontPreloads(html, css);
   assert.ok(output.includes('href="' + sourceFor('Fraunces Critical ZH', true) + '"'));
   assert.ok(output.includes('data-hero-en-font="' + sourceFor('Fraunces Critical', true) + '"'));
+  assert.ok(output.includes('data-hero-en-font="' + sourceFor('Fraunces Critical', false) + '"'));
+  assert.ok(output.includes('href="' + sourceFor('Fraunces Hero ZH', false) + '"'));
+  assert.ok(output.includes('data-hero-serif="zh"'));
   assert.equal(syncCriticalFontPreloads(output, css), output, 'rebuilding keeps one matching preload instead of appending attributes');
   const englishBuilder = await read('tools/i18n.mjs');
   assert.match(englishBuilder, /querySelectorAll\('link\[data-hero-en-font\]'\)/);

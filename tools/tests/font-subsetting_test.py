@@ -24,6 +24,16 @@ class FontSubsettingTests(unittest.TestCase):
             finally:
                 fonts.ROOT = original_root
 
+    def test_chinese_normal_points_keep_the_brand_and_exclude_italic_runs(self):
+        original_root = fonts.ROOT
+        with tempfile.TemporaryDirectory() as directory:
+            try:
+                fonts.ROOT = Path(directory)
+                (fonts.ROOT / "index.html").write_text('<span class="nav__name">NeriPlayer</span><section class="hero"><h1>本地优先，<em>AZ桌面</em></h1></section>', encoding="utf-8")
+                self.assertEqual(fonts.chinese_normal_points(), {ord(character) for character in " NeriPlayer"})
+            finally:
+                fonts.ROOT = original_root
+
     def test_missing_glyphs_fail_instead_of_disappearing(self):
         with self.assertRaisesRegex(ValueError, "missing required characters: U\\+10FFFF"):
             fonts.subset_bytes(fonts.FONTS / "fraunces.woff2", {ord("A"), 0x10FFFF})
