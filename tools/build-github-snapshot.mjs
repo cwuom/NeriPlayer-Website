@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 import { execFile } from 'node:child_process';
-import { mkdir, rename, rm, writeFile } from 'node:fs/promises';
+import { appendFile, mkdir, rename, rm, writeFile } from 'node:fs/promises';
 import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { promisify } from 'node:util';
@@ -8,6 +8,7 @@ import { promisify } from 'node:util';
 const execute = promisify(execFile);
 const repositories = { android: 'cwuom/NeriPlayer', desktop: 'cwuom/NeriPlayer-Desktop' };
 const integer = value => Number.isSafeInteger(value) && value >= 0;
+const revision = value => typeof value === 'string' && /^[a-f0-9]{40}$/i.test(value);
 const official = (url, repo, prefix) => typeof url === 'string' && url.startsWith(`https://github.com/${repo}/${prefix}`) && !/[\s"<>]/.test(url);
 const digest = value => value == null || value === '' || typeof value === 'string' && /^sha256:[a-f0-9]{64}$/i.test(value);
 const installer = (name, key) => typeof name === 'string' && (key === 'android' ? /\.apk$/i.test(name) :
@@ -24,6 +25,7 @@ function validateRelease(release, key) {
 
 export function validateSnapshot(value) {
   return !!(value && value.schema === 1 && Number.isFinite(Date.parse(value.fetched_at)) && value.repository &&
+    (value.site_revision === undefined || revision(value.site_revision)) &&
     integer(value.repository.stargazers_count) && integer(value.repository.forks_count) &&
     Object.keys(repositories).every(key => value[key] && validateRelease(value[key].latest, key) && value[key].stats &&
       integer(value[key].stats.count) && value[key].stats.count > 0 && integer(value[key].stats.total) && value[key].stats.limited === false));
@@ -70,7 +72,8 @@ async function collectStats(request, repo) {
   throw new Error(repo + ': release history pagination did not complete');
 }
 
-export async function buildSnapshot(request, now = new Date()) {
+export async function buildSnapshot(request, now = new Date(), { siteRevision } = {}) {
+  if (siteRevision !== undefined && !revision(siteRevision)) throw new Error('site_revision must be a 40-character Git commit SHA');
   const [repository, android, desktop] = await Promise.all([
     request('repos/' + repositories.android),
     Promise.all([request('repos/' + repositories.android + '/releases/latest'), collectStats(request, repositories.android)]),
@@ -82,12 +85,13 @@ export async function buildSnapshot(request, now = new Date()) {
     android: { latest: compactRelease(android[0], 'android'), stats: android[1] },
     desktop: { latest: compactRelease(desktop[0], 'desktop'), stats: desktop[1] },
   };
+  if (siteRevision !== undefined) result.site_revision = siteRevision.toLowerCase();
   if (!validateSnapshot(result)) throw new Error('GitHub snapshot validation failed');
   return result;
 }
 
-export async function refreshSnapshot({ output, request, now }) {
-  const value = await buildSnapshot(request, now);
+export async function refreshSnapshot({ output, request, now, siteRevision }) {
+  const value = await buildSnapshot(request, now, { siteRevision });
   const temporary = output + '.' + process.pid + '.tmp';
   await mkdir(dirname(output), { recursive: true });
   try {
@@ -95,6 +99,29 @@ export async function refreshSnapshot({ output, request, now }) {
     await rename(temporary, output);
   } finally { await rm(temporary, { force: true }); }
   return value;
+}
+
+function releaseIdentity(release) {
+  const assets = release.assets.map(asset => JSON.stringify([asset.name, asset.browser_download_url, asset.size, asset.digest || null])).sort();
+  return JSON.stringify([release.tag_name, release.published_at, release.html_url, release.body, assets]);
+}
+
+async function readPublishedSnapshot() {
+  const response = await fetch('https://neri.kano.kim/assets/data/github.json', { cache: 'no-cache', signal: AbortSignal.timeout(5000) });
+  if (!response.ok) throw new Error('Published snapshot returned HTTP ' + response.status);
+  return response.json();
+}
+
+export async function shouldDeploySnapshot(next, { eventName = 'workflow_dispatch', now = new Date(), loadPublished = readPublishedSnapshot } = {}) {
+  if (!validateSnapshot(next)) throw new Error('Cannot publish an invalid GitHub snapshot');
+  if (eventName !== 'schedule') return true;
+  let previous;
+  try { previous = await loadPublished(); } catch { return true; }
+  if (!validateSnapshot(previous)) return true;
+  if (next.site_revision && next.site_revision.toLowerCase() !== (previous.site_revision || '').toLowerCase()) return true;
+  const age = now.getTime() - Date.parse(previous.fetched_at);
+  if (!Number.isFinite(age) || age < 0 || age >= 24 * 60 * 60 * 1000) return true;
+  return Object.keys(repositories).some(key => releaseIdentity(previous[key].latest) !== releaseIdentity(next[key].latest));
 }
 
 async function officialRequest(path) {
@@ -114,8 +141,11 @@ if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.ur
   const outputArg = args.indexOf('--output');
   const output = outputArg >= 0 ? resolve(args[outputArg + 1]) : fileURLToPath(new URL('../assets/data/github.json', import.meta.url));
   try {
-    const value = await refreshSnapshot({ output, request: args.includes('--use-gh') ? cliRequest : officialRequest });
+    const value = await refreshSnapshot({ output, request: args.includes('--use-gh') ? cliRequest : officialRequest, siteRevision: process.env.GITHUB_SHA });
     console.log(`GitHub snapshot: ${value.fetched_at}, ${value.android.stats.count} Android / ${value.desktop.stats.count} desktop releases`);
+    const deploy = await shouldDeploySnapshot(value, { eventName: args.includes('--scheduled') ? 'schedule' : 'workflow_dispatch' });
+    if (process.env.GITHUB_OUTPUT) await appendFile(process.env.GITHUB_OUTPUT, 'deploy=' + deploy + '\n');
+    console.log('Publish site: ' + deploy);
   } catch (error) {
     console.error(error.message);
     process.exitCode = 1;

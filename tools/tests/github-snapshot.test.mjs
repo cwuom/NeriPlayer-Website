@@ -1,8 +1,11 @@
 import assert from 'node:assert/strict';
 import { existsSync } from 'node:fs';
+import { execFile } from 'node:child_process';
 import { mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
+import { fileURLToPath } from 'node:url';
+import { promisify } from 'node:util';
 import test from 'node:test';
 
 const tool = new URL('../build-github-snapshot.mjs', import.meta.url);
@@ -118,4 +121,119 @@ test('a published release may omit individual formats while retaining a valid in
   assert.equal(value.android.latest.assets.length, 1);
   assert.equal(value.desktop.latest.assets.length, 1);
   assert.equal(value.android.latest.assets[0].browser_download_url, release(repos[0]).assets[0].browser_download_url);
+});
+
+test('scheduled checks skip a recent unchanged release even when counters or asset order change', async () => {
+  const { buildSnapshot, shouldDeploySnapshot } = await module();
+  assert.equal(typeof shouldDeploySnapshot, 'function');
+  const previous = await buildSnapshot(request, new Date('2026-10-31T10:00:00Z'));
+  const next = structuredClone(previous);
+  next.fetched_at = '2026-10-31T12:00:00Z';
+  next.repository.stargazers_count++;
+  next.android.stats.total++;
+  next.desktop.stats.total++;
+  next.desktop.latest.assets.reverse();
+  assert.equal(await shouldDeploySnapshot(next, { eventName: 'schedule', now: new Date('2026-10-31T12:00:00Z'), loadPublished: async () => previous }), false);
+});
+
+test('scheduled checks immediately publish every change to the latest release identity', async () => {
+  const { buildSnapshot, shouldDeploySnapshot } = await module();
+  assert.equal(typeof shouldDeploySnapshot, 'function');
+  const previous = await buildSnapshot(request, new Date('2026-10-31T10:00:00Z'));
+  for (const key of ['android', 'desktop']) {
+    for (const field of ['tag_name', 'published_at', 'html_url', 'body', 'asset-url', 'asset-size', 'asset-digest', 'asset-added']) {
+      const next = structuredClone(previous);
+      const latest = next[key].latest;
+      if (field === 'published_at') latest.published_at = '2026-10-31T01:00:00Z';
+      else if (field === 'asset-url') latest.assets[0].browser_download_url += '?revision=2';
+      else if (field === 'asset-size') latest.assets[0].size++;
+      else if (field === 'asset-digest') latest.assets[0].digest = 'sha256:' + 'b'.repeat(64);
+      else if (field === 'asset-added') latest.assets.push({ ...latest.assets[0], name: key === 'android' ? 'extra-arm64-v8a.apk' : 'extra-x64-setup.exe', browser_download_url: latest.assets[0].browser_download_url + '?extra=1' });
+      else latest[field] += '-updated';
+      assert.equal(await shouldDeploySnapshot(next, { eventName: 'schedule', now: new Date('2026-10-31T12:00:00Z'), loadPublished: async () => previous }), true, key + ' ' + field);
+    }
+  }
+});
+
+test('an unchanged release refreshes at twenty four hours but not one millisecond sooner', async () => {
+  const { buildSnapshot, shouldDeploySnapshot } = await module();
+  assert.equal(typeof shouldDeploySnapshot, 'function');
+  const previous = await buildSnapshot(request, new Date('2026-10-30T12:00:00Z'));
+  const next = structuredClone(previous);
+  for (const [now, expected] of [['2026-10-31T11:59:59.999Z', false], ['2026-10-31T12:00:00Z', true]]) {
+    assert.equal(await shouldDeploySnapshot(next, { eventName: 'schedule', now: new Date(now), loadPublished: async () => previous }), expected);
+  }
+});
+
+test('failed or invalid published data never blocks a valid new scheduled snapshot', async () => {
+  const { buildSnapshot, shouldDeploySnapshot } = await module();
+  assert.equal(typeof shouldDeploySnapshot, 'function');
+  const next = await buildSnapshot(request);
+  for (const previous of [null, {}, { ...next, desktop: null }]) {
+    assert.equal(await shouldDeploySnapshot(next, { eventName: 'schedule', loadPublished: async () => previous }), true);
+  }
+  assert.equal(await shouldDeploySnapshot(next, { eventName: 'schedule', loadPublished: async () => { throw new Error('timed out'); } }), true);
+  const future = { ...next, fetched_at: '2100-01-01T00:00:00Z' };
+  assert.equal(await shouldDeploySnapshot(next, { eventName: 'schedule', now: new Date('2026-10-31T12:00:00Z'), loadPublished: async () => future }), true);
+});
+
+test('manual dispatch always publishes without reading the production site', async () => {
+  const { buildSnapshot, shouldDeploySnapshot } = await module();
+  assert.equal(typeof shouldDeploySnapshot, 'function');
+  const next = await buildSnapshot(request);
+  let reads = 0;
+  assert.equal(await shouldDeploySnapshot(next, { eventName: 'workflow_dispatch', loadPublished: async () => { reads++; return next; } }), true);
+  assert.equal(reads, 0);
+  await assert.rejects(shouldDeploySnapshot({}, { eventName: 'workflow_dispatch' }));
+});
+
+test('the CLI writes its schedule or manual decision to the standard GitHub output file', async () => {
+  const { buildSnapshot } = await module();
+  const dir = await mkdtemp(join(tmpdir(), 'np-github-output-'));
+  const execute = promisify(execFile);
+  const revision = 'c'.repeat(40);
+  const previous = await buildSnapshot(request, new Date(), { siteRevision: revision });
+  const preload = join(dir, 'fetch-fixture.mjs');
+  const fixtures = Object.fromEntries(await Promise.all([
+    'repos/' + repos[0], ...repos.flatMap(repo => ['repos/' + repo + '/releases/latest', 'repos/' + repo + '/releases?per_page=100&page=1']),
+  ].map(async path => [path, await request(path)])));
+  await writeFile(preload, `const fixtures = ${JSON.stringify(fixtures)};\nconst previous = ${JSON.stringify(previous)};\nglobalThis.fetch = async (url, options) => {\n  if (url === 'https://neri.kano.kim/assets/data/github.json') {\n    if (!options.signal || options.cache !== 'no-cache') throw new Error('The published snapshot must have a timeout and revalidate');\n    return { ok: true, json: async () => previous };\n  }\n  const result = fixtures[url.replace('https://api.github.com/', '')];\n  if (!result) throw new Error('Unexpected request');\n  return { ok: true, json: async () => result };\n};\n`);
+  try {
+    for (const [args, expected] of [[['--scheduled'], false], [[], true]]) {
+      const output = join(dir, 'output-' + expected);
+      const snapshot = join(dir, 'snapshot-' + expected + '.json');
+      await execute(process.execPath, ['--import', preload, fileURLToPath(tool), '--output', snapshot, ...args], { env: { ...process.env, GITHUB_SHA: revision, GITHUB_OUTPUT: output } });
+      assert.equal(await readFile(output, 'utf8'), 'deploy=' + expected + '\n');
+      assert.equal(JSON.parse(await readFile(snapshot, 'utf8')).schema, 1);
+      assert.equal(JSON.parse(await readFile(snapshot, 'utf8')).site_revision, revision);
+    }
+  } finally { await rm(dir, { recursive: true, force: true }); }
+});
+
+test('site revisions are optional locally and only valid Git commit identifiers enter the snapshot', async () => {
+  const { buildSnapshot, validateSnapshot } = await module();
+  const local = await buildSnapshot(request);
+  assert.equal(Object.hasOwn(local, 'site_revision'), false);
+  const revision = 'a'.repeat(40);
+  const value = await buildSnapshot(request, new Date(), { siteRevision: revision });
+  assert.equal(value.site_revision, revision);
+  assert.equal(validateSnapshot(value), true);
+  for (const invalid of ['', 'not-a-revision', 'a'.repeat(39), 'a'.repeat(41), null]) {
+    await assert.rejects(buildSnapshot(request, new Date(), { siteRevision: invalid }));
+    assert.equal(validateSnapshot({ ...local, site_revision: invalid }), false);
+  }
+});
+
+test('scheduled checks publish changed site revisions and migrate old published snapshots', async () => {
+  const { buildSnapshot, shouldDeploySnapshot } = await module();
+  const now = new Date('2026-10-31T12:00:00Z');
+  const previous = await buildSnapshot(request, now, { siteRevision: 'a'.repeat(40) });
+  const unchanged = structuredClone(previous);
+  assert.equal(await shouldDeploySnapshot(unchanged, { eventName: 'schedule', now, loadPublished: async () => previous }), false);
+  const changed = { ...unchanged, site_revision: 'b'.repeat(40) };
+  assert.equal(await shouldDeploySnapshot(changed, { eventName: 'schedule', now, loadPublished: async () => previous }), true);
+  const legacy = structuredClone(previous);
+  delete legacy.site_revision;
+  assert.equal(await shouldDeploySnapshot(unchanged, { eventName: 'schedule', now, loadPublished: async () => legacy }), true);
+  assert.equal(await shouldDeploySnapshot(legacy, { eventName: 'schedule', now, loadPublished: async () => previous }), false, 'local snapshots without a revision retain the release and time checks');
 });
