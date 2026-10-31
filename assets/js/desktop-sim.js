@@ -63,11 +63,7 @@
     '.amll-lyric-player .' + A.wrap + ' { position: absolute; left: 0; top: 0; width: 100%; will-change: transform, filter; cursor: pointer; }',
     '.amll-lyric-player .' + A.line + ' { transition: transform .6s cubic-bezier(.2,0,0,1); transform-origin: left center; }',
     '.amll-lyric-player.dsim-no-sub .' + A.sub + ' { display: none; }',
-    /* 手机上的播放页截图（整窗口，含播放页自己的标题栏），左上角留一块透明的收起按钮 */
-    /* 桌面版 .now-playing 的定位规则带 Vue 作用域属性，套不到这个元素上，这里自己定位，否则它会占满弹性布局把内容区挤没 */
-    '.dsim-npshot { position: absolute; inset: 0; z-index: 1000; overflow: hidden; background: #0e0c18; }',
-    '.dsim-npshot img { display: block; width: 100%; height: 100%; object-fit: cover; }',
-    '.dsim-npshot__close { position: absolute; left: 0; top: 0; width: 76px; height: 46px; padding: 0; border: 0; background: transparent; cursor: pointer; }',
+    '@media (hover: none), (pointer: coarse) { .dsim-app .lyrics-display-controls { opacity: 1; pointer-events: auto; transform: translate(-50%, 0); } }',
     /* 网站提示 */
     '.dsim-toast { position: absolute; left: 50%; bottom: 96px; z-index: 3000; max-width: 640px; padding: 12px 18px; border-radius: 8px; background: var(--md-inverse-surface); color: var(--md-inverse-on-surface); font: 14px/1.45 var(--font-family-default, MiSans, sans-serif); box-shadow: 0 6px 18px rgba(0,0,0,.25); opacity: 0; transform: translate(-50%, 12px); pointer-events: none; transition: opacity .25s, transform .35s cubic-bezier(.05,.7,.1,1); }',
     '.dsim-toast.is-on { opacity: 1; transform: translate(-50%, 0); }',
@@ -160,22 +156,31 @@
     gl.vertexAttribPointer(0, 2, gl.FLOAT, false, 0, 0);
     var u = {};
     ['u_resolution', 'u_time', 'u_musicLevel', 'u_beat', 'u_color0', 'u_color1', 'u_color2', 'u_color3', 'u_color4', 'u_darkMode', 'u_lightOffset', 'u_saturateOffset'].forEach(function (n) { u[n] = gl.getUniformLocation(p, n); });
-    canvas.width = 640;
-    canvas.height = 400;
-    gl.viewport(0, 0, 640, 400);
     var cs = props && props.colors || [[0.06, 0.06, 0.18, 1], [0.05, 0.05, 0.2, 1], [0.08, 0.08, 0.28, 1], [0.15, 0.14, 0.25, 1], [0.06, 0.06, 0.19, 1]];
     for (var i = 0; i < 5; i++) gl.uniform4fv(u['u_color' + i], cs[i]);
     gl.uniform1f(u.u_darkMode, props && props.isDark === false ? 0 : 1);
     gl.uniform1f(u.u_lightOffset, props ? props.lightOffset || 0 : 0);
     gl.uniform1f(u.u_saturateOffset, props ? props.saturateOffset || 0 : 0);
-    gl.uniform2f(u.u_resolution, 640, 400);
+    this.canvas = canvas;
     this.gl = gl;
     this.u = u;
+    this.resize();
     this.t = 2 + Math.random() * 4;
     this.level = 0;
     this.beat = 0;
     this.ok = true;
   }
+  Hyper.prototype.resize = function () {
+    if (!this.gl) return;
+    // 流体没有细密纹理，按实际显示尺寸分配画布即可保留动效并减少缩小窗口的填充开销
+    var width = Math.max(1, Math.min(640, Math.round(this.canvas.getBoundingClientRect().width * Math.min(window.devicePixelRatio || 1, 1.5))));
+    var height = Math.max(1, Math.round(width * H / W));
+    if (this.canvas.width === width && this.canvas.height === height) return;
+    this.canvas.width = width;
+    this.canvas.height = height;
+    this.gl.viewport(0, 0, width, height);
+    this.gl.uniform2f(this.u.u_resolution, width, height);
+  };
   Hyper.prototype.render = function (dt, playing, t) {
     if (!this.ok) return;
     var beatLen = 60 / 128;
@@ -211,8 +216,6 @@
     this.colorMode = 'cover';
     this.colorIdx = 0;
     this.fxMode = 'simple';
-    /* 手机上播放页（WebGL 流体背景 + 逐字歌词景深模糊）逐帧重绘会把浏览器卡住，换成同主题的真机截图 */
-    this.lite = !!(NP.env.coarse && window.matchMedia('(max-width: 980px)').matches);
     this.listeners = [];
   }
   var source = null;
@@ -305,7 +308,6 @@
       self.host.className = cls + (extra || '');
       self.layout();
       self.syncAppearance();
-      self.npShot();
     };
     if (smooth && !reduced) {
       commit(' theme-switching');
@@ -343,6 +345,7 @@
     if (!w) return;
     this.k = w / W;
     this.host.style.transform = 'scale(' + this.k.toFixed(5) + ')';
+    if (this.hyper) this.hyper.resize();
   };
   Sim.prototype.q = function (sel, r) { return (r || this.root).querySelector(sel); };
   Sim.prototype.qa = function (sel, r) { return Array.prototype.slice.call((r || this.root).querySelectorAll(sel)); };
@@ -362,12 +365,8 @@
     root.appendChild(toast);
     this.toastEl = toast;
     var layout = this.q('.app-layout');
-    if (this.lite) {
-      layout.insertAdjacentHTML('beforeend', '<div class="now-playing dsim-npshot"><img alt="" draggable="false" decoding="async"><button type="button" class="dsim-npshot__close" aria-label="' + L('收起', 'Collapse') + '"></button></div>');
-    } else {
-      layout.insertAdjacentHTML('beforeend', this.parts.np);
-      layout.insertAdjacentHTML('beforeend', this.parts['tb-np']);
-    }
+    layout.insertAdjacentHTML('beforeend', this.parts.np);
+    layout.insertAdjacentHTML('beforeend', this.parts['tb-np']);
     this.qa('.title-bar').forEach(function (tb) {
       tb.classList.remove('tb-transitioning', 'tb-opening', 'tb-closing');
       tb.insertAdjacentHTML('afterbegin', '<div class="tb-traffic-safe-area"><i class="tl tl--close" data-act="close"></i><i class="tl tl--min" data-act="min"></i><i class="tl tl--max" data-act="max"></i></div>');
@@ -378,6 +377,7 @@
     this.setRoute('home', true);
     this.bindShell();
     this.bindNP();
+    if (this.np) this.prepareNP();
     this.bindWheel();
     P.on(function () { self.sync(); });
     NP.addFrame(function (dt) { self.tick(dt); }, 9);
@@ -1043,21 +1043,10 @@
   };
 
   /* 播放页 */
-  Sim.prototype.npShot = function () {
-    var img = this.lite && this.npEl && this.npEl.querySelector('img');
-    if (!img) return;
-    var src = BASE + 'img/desktop/np-' + this.theme + '-' + (NP.en ? 'en' : 'zh') + '.jpg';
-    if (img.getAttribute('src') !== src) img.setAttribute('src', src);
-  };
   Sim.prototype.bindNP = function () {
     var self = this;
     var npEl = this.q('.now-playing');
     this.npEl = npEl;
-    if (this.lite) {
-      this.npShot();
-      this.q('.dsim-npshot__close', npEl).addEventListener('click', function () { self.openNP(false); });
-      return;
-    }
     var tbNp = this.q('.title-bar.tb-np-mode');
     var collapse = this.q('.tb-np-collapse', tbNp);
     if (collapse) collapse.addEventListener('click', function () { self.openNP(false); });
@@ -1104,9 +1093,13 @@
     var canvas = this.q('canvas.hyper-bg', this.npEl);
     this.hyper = canvas ? new Hyper(canvas, this.meta.hyper) : null;
     this.buildLyrics(this.q('.amll-lyric-player', this.npEl));
+    // 在入口过渡前画好首帧，避免先露出空歌词和未初始化的背景
+    this.tickLyrics(0, P.t);
+    if (this.hyper) this.hyper.render(0, P.playing, P.t);
   };
   Sim.prototype.openNP = function (on) {
     if (this.np === on) return;
+    if (on) this.prepareNP();
     this.np = on;
     this.host.classList.toggle('np-open', on);
     this.host.classList.toggle('dsim', true);
@@ -1249,7 +1242,7 @@
       var sec = Math.floor(t);
       if (sec !== this._sec) { this._sec = sec; setText(mp.time, mmss(t) + ' / ' + mmss(P.dur)); if (this.npTimes && this.npTimes[0]) { setText(this.npTimes[0], mmss(t)); setText(this.npTimes[1], mmss(P.dur)); } }
     }
-    if (!this.np || this.lite) return;
+    if (!this.np) return;
     // 首页和离屏窗口不需要分配播放页的 WebGL 与逐字歌词
     this.prepareNP();
     var wv = this.wave;

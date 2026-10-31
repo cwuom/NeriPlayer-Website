@@ -15,7 +15,7 @@ async function withHome(path, run, options = {}) {
     page.on('pageerror', error => errors.push(error.message));
     await page.route('**/__live', route => route.abort());
     await page.goto(site + path, { waitUntil: 'domcontentloaded' });
-    await page.waitForFunction(() => NP.booted && NP.previewHome);
+    await page.waitForFunction(() => { window.NP?.preparePreviews?.(); return NP.booted && NP.previewHome; });
     await enablePreviewInteractions(page, ['library']);
     const app = page.locator('[data-app-preview="library"]');
     await app.locator('[data-ap-nav="home"]').click();

@@ -23,7 +23,7 @@ test('both languages keep DOM player previews on touch screens', async () => {
       const page = await browser.newPage({ viewport: { width: 390, height: 844 }, hasTouch: true, isMobile: true, reducedMotion: 'reduce' });
       await page.route('**/__live', route => route.abort());
       await page.goto((process.env.SITE_URL || 'http://localhost:6060').replace(/\/$/, '') + path, { waitUntil: 'domcontentloaded' });
-      await page.waitForFunction(() => window.NP?.booted);
+      await page.waitForFunction(() => { window.NP?.preparePreviews?.(); return window.NP?.booted; });
       assert.equal(await page.locator('#devicePlay.is-shot').count(), 0);
       assert.equal(await page.locator('#devicePlay .pg-cover [data-ph-toggle]').count(), 1);
       assert.equal(await page.locator('#deviceLyrics .pg-lyrics [data-ph-like]').count(), 1);
@@ -49,7 +49,7 @@ test('favorite color and Clean player geometry follow the Android source', async
     const page = await browser.newPage({ reducedMotion: 'reduce' });
     await page.route('**/__live', route => route.abort());
     await page.goto(process.env.SITE_URL || 'http://localhost:6060/', { waitUntil: 'domcontentloaded' });
-    await page.waitForFunction(() => NP.booted);
+    await page.waitForFunction(() => { window.NP?.preparePreviews?.(); return NP.booted; });
     await enablePlayerInteractions(page);
     for (const style of ['clean', 'material']) {
       await page.locator('#themes [data-app-style="' + style + '"]').click();
@@ -81,7 +81,7 @@ test('global and local themes preserve playback and keep real device photos unch
     const page = await browser.newPage();
     await page.route('**/__live', route => route.abort());
     await page.goto(process.env.SITE_URL || 'http://localhost:6060/', { waitUntil: 'domcontentloaded' });
-    await page.waitForFunction(() => window.NP?.booted);
+    await page.waitForFunction(() => { window.NP?.preparePreviews?.(); return window.NP?.booted; });
     assert.ok(await page.evaluate(() => NP.phones.list.every(phone => !phone.fluid)), 'offscreen phone demos must not allocate WebGL at startup');
     assert.equal(await page.$eval('html', el => el.dataset.appStyle), 'clean');
     const photos = await page.locator('#shots img[data-real-shot]').evaluateAll(imgs => imgs.map(img => img.src));

@@ -11,7 +11,7 @@ async function visit(run, width = 1440, language = '/') {
     page.on('pageerror', error => errors.push(error.message));
     await page.route('**/__live', route => route.abort());
     await page.goto((process.env.SITE_URL || 'http://localhost:6060') + language, { waitUntil: 'domcontentloaded' });
-    await page.waitForFunction(() => NP.booted);
+    await page.waitForFunction(() => { window.NP?.preparePreviews?.(); return NP.booted; });
     await run(page);
     assert.deepEqual(errors, []);
   } finally { await browser.close(); }

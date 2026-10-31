@@ -13,7 +13,7 @@ async function visit(run, options = {}) {
     page.on('pageerror', error => errors.push(error.message));
     await page.route('**/__live', route => route.abort());
     await page.goto((process.env.SITE_URL || 'http://localhost:6060') + (options.locale === 'en' ? '/en/' : '/'));
-    await page.waitForFunction(() => NP.booted && NP.phoneUI.uis.length);
+    await page.waitForFunction(() => { window.NP?.preparePreviews?.(); return NP.booted && NP.phoneUI.uis.length; });
     await enablePlayerInteractions(page, ['#phPlay']);
     if (options.style) await page.evaluate(style => NP.themes.select(style), options.style);
     if (options.scale) {

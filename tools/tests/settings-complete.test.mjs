@@ -12,7 +12,7 @@ async function visit(path, run) {
     const errors = [];
     page.on('pageerror', e => errors.push(e.message));
     await page.goto((process.env.SITE_URL || 'http://localhost:6060') + path);
-    await page.waitForFunction(() => window.NP?.booted);
+    await page.waitForFunction(() => { window.NP?.preparePreviews?.(); return window.NP?.booted; });
     await enablePreviewInteractions(page, ['settings']);
     assert.equal(await page.evaluate(() => typeof NP.previewSettings), 'object');
     await run(page, page.locator('[data-app-preview="settings"]'));

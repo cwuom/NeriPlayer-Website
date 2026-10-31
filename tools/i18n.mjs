@@ -151,20 +151,23 @@ if (cmd === 'extract') {
     document.querySelectorAll('img[src*="-zh."]').forEach((img) => { if (d.swap.includes(img.getAttribute('src'))) img.setAttribute('src', img.getAttribute('src').replace('-zh.', '-en.')); });
     const doc = document.documentElement;
     doc.lang = 'en';
+    doc.querySelectorAll('link[data-hero-cjk]').forEach(link => link.remove());
     /* 相对路径整体上移一级；语言链接互换 */
     const fix = (v) => {
       if (!v || /^(#|[a-z]+:|\/|data:)/i.test(v)) return v;
       const r = ('../' + v).replace(/^\.\.\/\.\/$/, '../').replace(/^\.\.\/en\/?$/, './');
       return r;
     };
-    document.querySelectorAll('[src], [href], link[href], meta[property="og:image"], meta[property="og:url"]').forEach((el) => {
-      for (const a of ['src', 'href', 'content']) {
+    document.querySelectorAll('[src], [href], [data-np-module], link[href], meta[property="og:image"], meta[property="og:url"]').forEach((el) => {
+      for (const a of ['src', 'href', 'content', 'data-np-module']) {
         if (!el.hasAttribute(a)) continue;
         if (a === 'content' && !/^og:(image|url)$/.test(el.getAttribute('property') || '')) continue;
         if (a === 'href' && el.closest('svg') ) continue;
         el.setAttribute(a, fix(el.getAttribute(a)));
       }
     });
+    const critical = document.getElementById('critical-css');
+    if (critical) critical.textContent = critical.textContent.replaceAll('assets/fonts/', '../assets/fonts/');
     const og = document.querySelector('meta[property="og:locale"]');
     if (og) og.setAttribute('content', 'en_US');
     const lang = document.querySelector('.nav__lang');

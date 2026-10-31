@@ -13,7 +13,7 @@ async function visit(run, options = {}) {
     page.on('pageerror', error => errors.push(error.message));
     await page.route('**/__live', route => route.abort());
     await page.goto(process.env.SITE_URL || 'http://localhost:6060', { waitUntil: 'domcontentloaded' });
-    await page.waitForFunction(() => NP.booted && !document.querySelector('#devicePlay').classList.contains('is-fontwait'));
+    await page.waitForFunction(() => { window.NP?.preparePreviews?.(); return NP.booted && !document.querySelector('#devicePlay').classList.contains('is-fontwait'); });
     await enablePlayerInteractions(page, ['#phPlay']);
     await page.locator('#phPlay').scrollIntoViewIfNeeded();
     await page.evaluate(() => NP.player.pause());

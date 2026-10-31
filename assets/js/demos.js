@@ -118,6 +118,7 @@
   function initChain() {
     var chain = $('#chain');
     if (!chain) return;
+    chain.classList.add('is-paused');
     var base = $('#wireBase');
     var flow = $('#wireFlow');
     var bypass = $('#wireBypass');
@@ -176,7 +177,7 @@
       k++;
       timer = setTimeout(pulse, k % nodes.length === 0 ? 1100 : 520);
     }
-    NP.whenVisible(chain, function () { draw(); clearTimeout(timer); pulse(); }, function () { clearTimeout(timer); });
+    NP.whenVisible(chain, function () { chain.classList.remove('is-paused'); draw(); clearTimeout(timer); pulse(); }, function () { chain.classList.add('is-paused'); clearTimeout(timer); });
   }
 
   /* ---------- 05 一起听：三个人的房间 ---------- */
@@ -525,10 +526,61 @@
     var legends = $$('.tablegend', stage);
     var panel = $('[role="tabpanel"]', stage);
     var cur = 0;
+    var requested = 0;
+    var request = 0;
+    var loading = true;
+    var started = false;
+    var loads = [];
+    var failed = [];
     var prevTimer = 0;
+    var hover = false;
+    var seen = false;
     var reduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    var status = document.createElement('span');
+    status.className = 'tabstage__status is-on';
+    status.setAttribute('role', 'status');
+    status.textContent = NP.L('截图加载中…', 'Loading screenshot…');
+    panel.appendChild(status);
+    panel.setAttribute('aria-busy', 'true');
 
-    function show(i, focus) {
+    function sync() { stage.classList.toggle('is-paused', loading || hover || !seen || document.hidden); }
+    function pending(i, message) {
+      loading = i !== null;
+      panel.setAttribute('aria-busy', loading ? 'true' : 'false');
+      status.textContent = loading ? NP.L('截图加载中…', 'Loading screenshot…') : message || '';
+      status.classList.toggle('is-on', !!status.textContent);
+      tabs.forEach(function (t, k) { t.classList.toggle('is-loading', loading && k === i); });
+      sync();
+    }
+
+    function prepare(i) {
+      if (loads[i]) return loads[i];
+      var image = $('img', shots[i]);
+      loads[i] = new Promise(function (resolve, reject) {
+        function cleanup() { image.removeEventListener('load', loaded); image.removeEventListener('error', broken); }
+        function broken() { cleanup(); reject(new Error('Screenshot unavailable')); }
+        function loaded() {
+          cleanup();
+          // complete 只代表下载结束，解码完成后才能安全接替旧图
+          var decoded = image.decode ? image.decode() : Promise.resolve();
+          decoded.then(resolve, reject);
+        }
+        image.addEventListener('load', loaded);
+        image.addEventListener('error', broken);
+        image.loading = 'eager';
+        if (failed[i]) { failed[i] = false; image.src = image.getAttribute('src'); }
+        else if (image.complete) { if (image.naturalWidth) loaded(); else broken(); }
+      }).then(function () {
+        shots[i].classList.add('is-ready');
+      }, function (error) {
+        loads[i] = null;
+        failed[i] = true;
+        throw error;
+      });
+      return loads[i];
+    }
+
+    function commit(i) {
       if (i === cur) return;
       var old = shots[cur];
       cur = i;
@@ -538,7 +590,6 @@
         t.setAttribute('aria-selected', on ? 'true' : 'false');
         t.tabIndex = on ? 0 : -1;
       });
-      if (focus) tabs[i].focus();
       panel.setAttribute('aria-labelledby', tabs[i].id);
       clearTimeout(prevTimer);
       shots.forEach(function (s) { s.classList.remove('is-prev', 'is-wipe'); });
@@ -559,6 +610,28 @@
       });
     }
 
+    function show(i, focus) {
+      started = true;
+      requested = i;
+      var token = ++request;
+      if (focus) tabs[i].focus();
+      if (i === cur && shots[i].classList.contains('is-ready')) { pending(null); return; }
+      pending(i);
+      prepare(i).then(function () {
+        // 用户可能在下载或解码期间又选了其它页
+        if (token !== request) return;
+        pending(null);
+        commit(i);
+        prepare((i + 1) % shots.length).catch(function () {});
+      }, function () {
+        if (token !== request) return;
+        stop();
+        pending(null, NP.L('截图加载失败，点击标签重试', 'Screenshot unavailable. Select the tab to retry'));
+      });
+    }
+
+    NP.whenVisible(panel, function () { if (!started) show(requested); }, null, '500px');
+
     tabs.forEach(function (t, k) {
       t.addEventListener('click', function () { stop(); show(k); });
       t.addEventListener('keydown', function (e) {
@@ -566,7 +639,7 @@
         if (!d) return;
         e.preventDefault();
         stop();
-        show((cur + d + tabs.length) % tabs.length, true);
+        show((requested + d + tabs.length) % tabs.length, true);
       });
     });
 
@@ -589,9 +662,6 @@
       if (e.animationName !== 'tabprog' || !stage.classList.contains('is-auto')) return;
       show((cur + 1) % tabs.length);
     });
-    var hover = false;
-    var seen = false;
-    function sync() { stage.classList.toggle('is-paused', hover || !seen || document.hidden); }
     stage.addEventListener('pointerenter', function (e) { if (e.pointerType === 'mouse') { hover = true; sync(); } });
     stage.addEventListener('pointerleave', function () { hover = false; sync(); });
     document.addEventListener('visibilitychange', sync);

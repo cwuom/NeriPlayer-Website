@@ -125,11 +125,11 @@
   });
 
   /* ---------- 滚动状态与平滑滚动 ---------- */
-  var scroll = (NP.scroll = { y: window.scrollY, vy: 0, max: 0 });
+  var scroll = (NP.scroll = { y: 0, vy: 0 });
   var ss = {
     on: false,
-    cur: window.scrollY,
-    target: window.scrollY,
+    cur: 0,
+    target: 0,
     active: false,
     lastSet: -1,
     tween: null,
@@ -195,6 +195,7 @@
 
   window.addEventListener('scroll', function () {
     var y = window.scrollY;
+    scroll.y = y;
     if (ss.active || ss.tween) {
       // 用户拖动了滚动条或浏览器自身发生滚动，交还控制权
       if (Math.abs(y - ss.lastSet) > 3) {
@@ -228,6 +229,8 @@
     }
     ss.lastSet = ss.cur;
     window.scrollTo(0, ss.cur);
+    // 浏览器会取整并钳制位置，当前帧的视差与速度也要使用实际结果
+    scroll.y = window.scrollY;
   };
 
   NP.scrollTo = function (y, instant) {
@@ -237,6 +240,7 @@
       ss.active = false;
       ss.cur = ss.target = y;
       window.scrollTo(0, y);
+      scroll.y = window.scrollY;
       return;
     }
     var from = window.scrollY;
@@ -247,6 +251,18 @@
     ss.active = true;
   };
 
+  NP.retargetScroll = function (y) {
+    if (!ss.tween) { NP.scrollTo(y); return; }
+    y = clamp(y, 0, maxScroll());
+    var tw = ss.tween;
+    if (Math.abs(tw.to - y) < 1) return;
+    var eased = ease.inOut(tw.t);
+    // 布局变化只修正剩余路程，保留当前帧的位置和动画进度
+    ss.cur = ss.lastSet = window.scrollY;
+    if (eased < 1) tw.from = (ss.cur - eased * y) / (1 - eased);
+    tw.to = ss.target = y;
+  };
+
   NP.lockScroll = function (on) {
     ss.locked = !!on;
     document.documentElement.classList.toggle('is-locked', !!on);
@@ -255,19 +271,27 @@
   NP.smoothScroll = {
     init: function () {
       ss.cur = ss.target = window.scrollY;
+      scroll.y = lastY = ss.cur;
       if (NP.env.reduced || NP.env.coarse) return;
       ss.on = true;
       window.addEventListener('wheel', onWheel, { passive: false });
       window.addEventListener('keydown', onKey);
     },
     update: ss.update,
+    isAnimating: function () { return !!ss.tween; },
   };
 
-  var lastY = window.scrollY;
+  var lastY = scroll.y;
+  window.addEventListener('pageshow', function (e) {
+    scroll.y = window.scrollY;
+    if (!e.persisted) return;
+    stopTween();
+    ss.active = false;
+    ss.cur = ss.target = lastY = scroll.y;
+    scroll.vy = 0;
+  });
   scroll.update = function (dt) {
-    var y = window.scrollY;
-    scroll.y = y;
-    scroll.max = maxScroll();
+    var y = scroll.y;
     var v = dt > 0 ? (y - lastY) / dt : 0;
     scroll.vy = damp(scroll.vy, clamp(v, -30000, 30000), 7, dt);
     lastY = y;

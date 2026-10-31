@@ -175,22 +175,63 @@
       failList($(o.changes), GH + o.repo + '/releases');
       self.apply();
     });
-    var asked = false;
-    NP.whenVisible($('#download'), function () {
-      if (asked) return;
-      asked = true;
-      cached(o.cache + 's', 360, API + o.repo + '/releases?per_page=100', function (list) {
-        if (!Array.isArray(list)) return null;
-        var total = 0;
-        list.forEach(function (rel) { (rel.assets || []).forEach(function (a) { if (!/\.(txt|sh|xz)$/i.test(a.name)) total += a.download_count || 0; }); });
-        return { count: list.length, total: total };
-      }).then(function (s) {
-        if (!s) return;
-        var more = s.count >= 100 ? '+' : '';
-        setAll(o.prefix + 'count', s.count + more);
-        setAll(o.prefix + 'downloads', fmtCount(s.total) + more);
-      }).catch(function () {});
-    }, null, '1400px 0px');
+    this.watchStats();
+  };
+  Ticket.prototype.loadStats = function (user) {
+    if (this.statsRequest) return this.statsRequest;
+    if (this.statsFailed && !user) return Promise.resolve(null);
+    var self = this;
+    var o = this.o;
+    this.statsFailed = false;
+    this.statsRequest = cached(o.cache + 's', 360, API + o.repo + '/releases?per_page=100', function (list) {
+      if (!Array.isArray(list)) return null;
+      var total = 0;
+      list.forEach(function (rel) { (rel.assets || []).forEach(function (a) { if (!/\.(txt|sh|xz)$/i.test(a.name)) total += a.download_count || 0; }); });
+      return { count: list.length, total: total };
+    }).then(function (s) {
+      if (self.stopStatsWatch) self.stopStatsWatch();
+      if (!s) { self.statsFailed = true; self.statsRequest = null; return null; }
+      var more = s.count >= 100 ? '+' : '';
+      setAll(o.prefix + 'count', s.count + more);
+      setAll(o.prefix + 'downloads', fmtCount(s.total) + more);
+      return s;
+    }).catch(function () {
+      if (self.stopStatsWatch) self.stopStatsWatch();
+      self.statsFailed = true;
+      self.statsRequest = null;
+      return null;
+    });
+    return this.statsRequest;
+  };
+  Ticket.prototype.watchStats = function () {
+    var self = this;
+    var field = $('[data-gh="' + this.o.prefix + 'downloads"]');
+    var target = field && field.closest('.ticket__stub');
+    if (!target) return;
+    var pane = target.closest('.dlpane');
+    function active() { return !pane || pane.classList.contains('is-on'); }
+    if ('IntersectionObserver' in window) {
+      var observer = new IntersectionObserver(function (entries) {
+        entries.forEach(function (entry) { if (entry.isIntersecting && active()) self.loadStats(); });
+      }, { rootMargin: '240px 0px' });
+      this.stopStatsWatch = function () { observer.disconnect(); };
+      observer.observe(target);
+    } else {
+      function check() {
+        if (!active()) return;
+        var rect = target.getBoundingClientRect();
+        if (rect.top <= window.innerHeight + 240 && rect.bottom >= -240) self.loadStats();
+      }
+      this.stopStatsWatch = function () {
+        window.removeEventListener('scroll', check);
+        window.removeEventListener('resize', check);
+        window.removeEventListener('load', check);
+      };
+      window.addEventListener('scroll', check, { passive: true });
+      window.addEventListener('resize', check);
+      window.addEventListener('load', check);
+      check();
+    }
   };
 
   function abiOf(name) {
@@ -228,7 +269,7 @@
   }
 
   /* ---------- 下载区：手机 / 电脑两张票切换，高度跟着动画 ---------- */
-  function Switch(root) {
+  function Switch(root, onSelect) {
     var self = this;
     this.root = root;
     this.btns = $$('[data-plat]', $('.dlswitch', root));
@@ -236,15 +277,16 @@
     this.box = $('#dlPanes', root);
     this.panes = $$('.dlpane', this.box);
     this.cur = 'android';
+    this.onSelect = onSelect;
     this.btns.forEach(function (b) {
-      b.addEventListener('click', function () { self.set(b.getAttribute('data-plat')); });
+      b.addEventListener('click', function () { self.set(b.getAttribute('data-plat'), false, true); });
       b.addEventListener('keydown', function (e) {
         var d = e.key === 'ArrowRight' ? 1 : e.key === 'ArrowLeft' ? -1 : 0;
         if (!d) return;
         e.preventDefault();
         var i = (self.btns.indexOf(b) + d + self.btns.length) % self.btns.length;
         self.btns[i].focus();
-        self.set(self.btns[i].getAttribute('data-plat'));
+        self.set(self.btns[i].getAttribute('data-plat'), false, true);
       });
     });
     if (window.ResizeObserver) {
@@ -254,7 +296,7 @@
     NP.onResize(function () { self.place(true); self.fit(); });
     if (document.fonts && document.fonts.ready) document.fonts.ready.then(function () { self.place(true); self.fit(); });
   }
-  Switch.prototype.set = function (plat, instant) {
+  Switch.prototype.set = function (plat, instant, user) {
     var self = this;
     var changed = plat !== this.cur;
     this.cur = plat;
@@ -275,6 +317,7 @@
     this.place(instant);
     this.fit();
     if (instant) requestAnimationFrame(function () { self.box.classList.remove('is-instant'); });
+    if (user && this.onSelect) this.onSelect(plat);
   };
   Switch.prototype.place = function (instant) {
     var b = this.btns.filter(function (x) { return x.classList.contains('is-on'); })[0];
@@ -364,7 +407,7 @@
     $$('[data-plat-go]').forEach(function (a) {
       a.addEventListener('click', function () {
         var plat = a.getAttribute('data-plat-go');
-        if (sw) sw.set(plat, true);
+        if (sw) sw.set(plat, true, true);
         var pkg = a.getAttribute('data-pkg');
         if (plat === 'desktop' && dt && pkg) dt.setOS(osOfPkg(pkg), pkg);
       });
@@ -402,7 +445,7 @@
       var dt = initDeskTicket(desk);
       if (dt) dt.setOS(g.os === 'mac' || g.os === 'linux' ? g.os : 'win', g.pkg);
       var dl = $('#download');
-      var sw = dl && $('.dlswitch', dl) ? new Switch(dl) : null;
+      var sw = dl && $('.dlswitch', dl) ? new Switch(dl, function (plat) { (plat === 'desktop' ? desk : android).loadStats(true); }) : null;
       if (sw) sw.set(g.pkg ? 'desktop' : 'android', true);
       initCTA(g, sw, dt);
       $$('[data-desk-cta]').forEach(function (el) { swap(el, osLabel(g.os)); });

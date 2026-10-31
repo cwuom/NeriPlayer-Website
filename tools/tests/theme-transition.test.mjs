@@ -11,7 +11,7 @@ async function visit(run, reducedMotion = 'no-preference') {
     const errors = [];
     page.on('pageerror', error => errors.push(error.message));
     await page.goto((process.env.SITE_URL || 'http://localhost:6060') + '/');
-    await page.waitForFunction(() => window.NP?.booted);
+    await page.waitForFunction(() => { window.NP?.preparePreviews?.(); return window.NP?.booted; });
     await enablePreviewInteractions(page, ['settings']);
     await page.evaluate(() => document.fonts.ready);
     const host = page.locator('[data-app-preview="settings"]');

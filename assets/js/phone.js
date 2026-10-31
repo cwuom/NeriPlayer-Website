@@ -1025,6 +1025,9 @@
       ph.style.setProperty('--h-primary', v.primary);
       ph.style.setProperty('--h-mini', v.mini);
       ph.style.setProperty('--h-nav', v.nav);
+      // 玻璃单独控制透明度，种子色容器保持不透明，避免主题着色再次衰减
+      ph.style.setProperty('--h-mini-tint', dark ? hsl(h, 15, 30) : hsl(h, 45, 86));
+      ph.style.setProperty('--h-nav-tint', dark ? hsl(h, 5, 23) : hsl(h, 24, 94));
       ph.style.setProperty('--ui', state.ui);
       var width = ph.clientWidth / state.ui;
       var container = width - sectionInset * 2;

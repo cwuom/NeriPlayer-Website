@@ -11,8 +11,8 @@ async function visit(run, path = '') {
     const errors = [];
     page.on('pageerror', error => errors.push(error.message));
     await page.route('**/__live', route => route.abort());
-    await page.goto((process.env.SITE_URL || 'http://localhost:6060/') + path, { waitUntil: 'domcontentloaded' });
-    await page.waitForFunction(() => NP.booted);
+    await page.goto(new URL(path, (process.env.SITE_URL || 'http://localhost:6060').replace(/\/$/, '') + '/').href, { waitUntil: 'domcontentloaded' });
+    await page.waitForFunction(() => { window.NP?.preparePreviews?.(); return NP.booted; });
     await enablePreviewInteractions(page, ['settings']);
     await run(page, page.locator('[data-app-preview="settings"]'));
     assert.deepEqual(errors, []);

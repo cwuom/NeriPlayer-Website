@@ -14,7 +14,7 @@ for (const language of ['zh', 'en']) for (const width of [390, 1440]) {
       page.on('pageerror', error => errors.push(error.message));
       await page.route('**/__live', route => route.abort());
       await page.goto(`${process.env.SITE_URL || 'http://localhost:6060'}/${language === 'en' ? 'en/' : ''}`, { waitUntil: 'domcontentloaded' });
-      await page.waitForFunction(() => NP.booted && !document.querySelector('#devicePlay').classList.contains('is-fontwait'));
+      await page.waitForFunction(() => { window.NP?.preparePreviews?.(); return NP.booted && !document.querySelector('#devicePlay').classList.contains('is-fontwait'); });
       const regularWidth = await page.locator('#devicePlay').evaluate(node => node.offsetWidth);
       for (const style of ['clean', 'material']) {
         await page.evaluate(style => {

@@ -142,7 +142,7 @@
   }
 
   /* ---------- 滚动联动 ---------- */
-  var vh = window.innerHeight;
+  var vh = 0;
   var hero = null;
   var parallax = [];
   var shots = null;
@@ -456,14 +456,20 @@
       ind.setAttribute('aria-hidden', 'true');
       seg.insertBefore(ind, seg.firstChild);
       seg.classList.add('has-ind');
+      var lastGeometry = '';
       function place(jump) {
         var on = $('button.is-on', seg);
-        ind.hidden = !on || !on.offsetWidth;
-        if (ind.hidden) return;
+        var width = on ? on.offsetWidth : 0;
+        if (!width) { ind.hidden = true; lastGeometry = ''; return; }
+        var height = on.offsetHeight, left = on.offsetLeft, top = on.offsetTop;
+        var geometry = [width, height, left, top].join(',');
+        if (geometry === lastGeometry && !ind.hidden) return;
+        lastGeometry = geometry;
+        ind.hidden = false;
         if (jump) ind.classList.add('is-jump');
-        ind.style.width = on.offsetWidth + 'px';
-        ind.style.height = on.offsetHeight + 'px';
-        ind.style.translate = on.offsetLeft + 'px ' + on.offsetTop + 'px';
+        ind.style.width = width + 'px';
+        ind.style.height = height + 'px';
+        ind.style.translate = left + 'px ' + top + 'px';
         if (jump) { void ind.offsetWidth; ind.classList.remove('is-jump'); }
       }
       new MutationObserver(function () { place(false); }).observe(seg, { subtree: true, attributes: true, attributeFilter: ['class'] });
@@ -493,8 +499,8 @@
       if (document.fonts && document.fonts.load && h1) {
         var sample = (h1.textContent || 'NeriPlayer').replace(/\s+/g, '').slice(0, 24);
         Promise.all([
-          document.fonts.load('400 64px Fraunces', sample),
-          document.fonts.load('italic 400 64px Fraunces', sample),
+          document.fonts.load('400 64px "Fraunces Critical"', sample),
+          document.fonts.load('italic 400 64px "Fraunces Critical"', sample),
           document.fonts.load('400 64px "NP Serif"', sample),
         ]).then(start, start);
         setTimeout(start, 1200);

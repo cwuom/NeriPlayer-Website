@@ -14,6 +14,7 @@
   --ng-pill: 12%;
 }
 .app-preview.np-glass-host { --ng-bg:var(--ap-bg);--ng-on:var(--ap-on);--ng-accent:var(--ap-accent);--ng-mini-tint:var(--ap-selected) }
+.ph--home.np-glass-host[data-app-style="material"] { --ng-mini-tint:var(--h-mini-tint,#4a4458);--ng-nav-tint:var(--h-nav-tint,var(--ng-bg)) }
 .ap-embedded-host.preview-device { --s:inherit }
 .ph.np-glass-host[data-app-style="clean"] { --ng-nav-tint:#1a1a1e;--ng-mini-tint:#1a1a1e }
 .app-preview.np-glass-host[data-style="clean"] { --ng-nav-tint:var(--ap-card);--ng-mini-tint:var(--ap-card) }

@@ -16,7 +16,7 @@ async function browserTest(path, fn, options = {}) {
     page.on('pageerror', error => errors.push(error.message));
     await page.route('**/__live', route => route.abort());
     await page.goto(site + path, { waitUntil: 'domcontentloaded' });
-    await page.waitForFunction(() => window.NP?.booted && NP.previewLibrary);
+    await page.waitForFunction(() => { window.NP?.preparePreviews?.(); return window.NP?.booted && NP.previewLibrary; });
     await enablePreviewInteractions(page);
     await fn(page, page.locator('[data-app-preview="library"]'));
     assert.deepEqual(errors, [], 'library interaction must not generate browser exceptions');

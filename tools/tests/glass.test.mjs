@@ -18,7 +18,7 @@ async function withPage(fn, path = '/', mobile = false, reducedMotion = 'reduce'
     page.on('pageerror', e => errors.push(e.message));
     await page.route('**/__live', route => route.abort());
     await page.goto(site + path, { waitUntil:'domcontentloaded' });
-    await page.waitForFunction(() => NP.booted && document.querySelector('#phDsp.np-glass-host'));
+    await page.waitForFunction(() => { window.NP?.preparePreviews?.(); return NP.booted && document.querySelector('#phDsp.np-glass-host'); });
     await fn(page);
     assert.deepEqual(errors, []);
   } finally { await browser.close(); }

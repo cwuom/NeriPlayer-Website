@@ -14,7 +14,7 @@ async function visit(run, options = {}) {
     page.on('request', request => { if (/\/login|\/oauth|\/auth\//i.test(request.url())) authRequests.push(request.url()); });
     await page.route('**/__live', route => route.abort());
     await page.goto((process.env.SITE_URL || 'http://localhost:6060') + (options.locale === 'en' ? '/en/' : '/'));
-    await page.waitForFunction(() => NP.booted && NP.previewHome);
+    await page.waitForFunction(() => { window.NP?.preparePreviews?.(); return NP.booted && NP.previewHome; });
     await enablePreviewInteractions(page, ['library']);
     const host = page.locator('[data-app-preview="library"]');
     await host.locator('[data-ap-nav="home"]').click();

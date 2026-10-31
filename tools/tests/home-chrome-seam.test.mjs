@@ -16,7 +16,7 @@ async function visit(run, width, deviceScaleFactor) {
     page.on('pageerror', error => errors.push(error.message));
     await page.route('**/__live', route => route.abort());
     await page.goto(process.env.SITE_URL || 'http://localhost:6060');
-    await page.waitForFunction(() => NP.booted);
+    await page.waitForFunction(() => { window.NP?.preparePreviews?.(); return NP.booted; });
     await page.locator('#deviceHome').scrollIntoViewIfNeeded();
     await run(page);
     assert.deepEqual(errors, []);

@@ -31,7 +31,7 @@ async function pageFor(t) {
   page.setDefaultTimeout(5000);
   t.after(() => page.close());
   await page.goto(origin, { waitUntil: 'domcontentloaded' });
-  await page.waitForFunction(() => !!window.NP?.dsp?.page);
+  await page.waitForFunction(() => { window.NP?.preparePreviews?.(); return window.NP?.booted && !!window.NP?.dsp?.page; });
   await page.evaluate(() => NP.sound.usePreset('flat'));
   return page;
 }
@@ -125,7 +125,8 @@ test('parametric correction bands can be edited and removed', async (t) => {
 test('browser status never fabricates native CPU load or a sample rate without audio taps', async (t) => {
   const page = await pageFor(t);
   await page.evaluate(() => { NP.sound.state.bass = 3; NP.player.playing = true; NP.player.audible = true; NP.dspScope.scope.sample(); });
-  const status = await page.locator('[data-status]').innerText();
+  // 离屏绘制会省略 innerText，状态信息仍必须如实检查
+  const status = await page.locator('[data-status]').textContent();
   assert.doesNotMatch(status, /单核|CPU|48 kHz/);
   assert.match(status, /浏览器/);
   assert.equal(await page.evaluate(() => NP.dspRuntime.limDb), 0);

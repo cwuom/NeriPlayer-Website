@@ -16,7 +16,7 @@ async function browserCheck(run, options = {}) {
     page.on('pageerror', error => errors.push(error.message));
     await page.route('**/__live', route => route.abort());
     await page.goto(site, { waitUntil: 'domcontentloaded' });
-    await page.waitForFunction(() => NP.booted);
+    await page.waitForFunction(() => { window.NP?.preparePreviews?.(); return NP.booted; });
     await page.waitForFunction(() => !document.querySelector('#devicePlay').classList.contains('is-fontwait'));
     await run(page);
     assert.deepEqual(errors, []);

@@ -68,7 +68,7 @@ for (const language of ['/', '/en/']) {
       page.on('pageerror', error => errors.push(error.message));
       await page.route('**/__live', route => route.abort());
       await page.goto((process.env.SITE_URL || 'http://localhost:6060') + language, { waitUntil: 'domcontentloaded' });
-      await page.waitForFunction(() => NP.booted);
+      await page.waitForFunction(() => { window.NP?.preparePreviews?.(); return NP.booted; });
       for (const style of ['clean', 'material', 'clean']) {
         await page.locator(`#themes button[data-app-style="${style}"]`).click();
         for (const route of ['settings', 'library']) {
@@ -120,7 +120,7 @@ for (const language of ['/', '/en/']) {
       page.on('pageerror', error => errors.push(error.message));
       await page.route('**/__live', route => route.abort());
       await page.goto((process.env.SITE_URL || 'http://localhost:6060') + language, { waitUntil: 'domcontentloaded' });
-      await page.waitForFunction(() => NP.booted);
+      await page.waitForFunction(() => { window.NP?.preparePreviews?.(); return NP.booted; });
       await page.evaluate(() => document.fonts.ready);
       for (const style of ['clean', 'material']) for (const mode of ['dark', 'light']) {
         await page.evaluate(({ style, mode, missingFill }) => {

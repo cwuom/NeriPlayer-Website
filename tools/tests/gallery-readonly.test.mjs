@@ -15,7 +15,7 @@ for (const language of ['/', '/en/']) for (const width of [390, 1440]) {
       page.on('pageerror', error => errors.push(error.message));
       await page.route('**/__live', route => route.abort());
       await page.goto(origin + language, { waitUntil: 'domcontentloaded' });
-      await page.waitForFunction(() => NP.booted);
+      await page.waitForFunction(() => { window.NP?.preparePreviews?.(); return NP.booted; });
       const gallery = page.locator('#themes .theme-gallery');
       assert.equal(await gallery.locator('[data-preview-readonly]').count(), 2);
       assert.equal(await gallery.locator('[data-ap-source="qq"]').count(), 0);

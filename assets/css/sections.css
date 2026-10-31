@@ -310,6 +310,7 @@
 .chain__base { stroke: var(--ink); stroke-width: 1.6; }
 .chain__flow { stroke: var(--acc); stroke-width: 3; stroke-dasharray: 2 13; animation: dash 1s linear infinite; }
 .chain__bypass { stroke: var(--red); stroke-width: 2.4; stroke-dasharray: 7 7; opacity: 0; transition: opacity .5s; animation: dash 1s linear infinite; }
+.chain.is-paused .chain__flow, .chain.is-paused .chain__bypass { animation-play-state: paused; }
 .chain.is-bp .chain__bypass { opacity: 1; }
 @keyframes dash { to { stroke-dashoffset: -15; } }
 .chain__nodes { position: relative; z-index: 1; display: grid; grid-template-columns: repeat(6, 1fr); gap: 18px; }
@@ -640,6 +641,7 @@
 }
 .tabstage__tabs button.is-on { border-color: var(--ink); background: var(--ink); color: var(--paper); }
 .tabstage__tabs button.is-on i { border-color: var(--acc); background: var(--acc); color: #fff; rotate: -12deg; }
+.tabstage__tabs button.is-loading { border-color: var(--acc); }
 .tabstage__tabs s { position: absolute; left: 0; right: 0; bottom: 0; height: 3px; background: var(--acc); scale: 0 1; transform-origin: 0 50%; }
 .tabstage.is-auto .tabstage__tabs .is-on s { animation: tabprog 6.5s linear forwards; }
 .tabstage.is-auto.is-paused .tabstage__tabs .is-on s { animation-play-state: paused; }
@@ -664,12 +666,15 @@
 .tabshot { position: absolute; inset: 0; visibility: hidden; clip-path: inset(0 100% 0 0); transition: clip-path 1.05s var(--ease-io), visibility 0s 1.05s; }
 .tabshot.is-on { z-index: 2; visibility: visible; clip-path: inset(0); transition: clip-path 1.05s var(--ease-io); }
 .tabshot.is-prev { z-index: 1; visibility: visible; clip-path: inset(0); transition: none; }
+.tabshot:not(.is-ready) .tabpin { visibility: hidden; }
 .tabshot img { display: block; width: 100%; height: 100%; object-fit: cover; scale: 1.06; transition: scale 1.6s var(--ease-out); }
 .tabshot.is-on img { scale: 1; }
 .tabshot.is-prev img { scale: 1; translate: -3% 0; filter: brightness(.6); transition: translate 1.05s var(--ease-io), filter 1.05s var(--ease-io); }
 .tabshot::after { content: ""; position: absolute; top: 0; bottom: 0; right: 0; width: 2px; background: linear-gradient(transparent, rgba(255, 255, 255, .7), transparent); opacity: 0; }
 .tabshot.is-wipe::after { animation: tabedge 1.05s var(--ease-io); }
 @keyframes tabedge { 0%, 100% { opacity: 0; } 15%, 80% { opacity: 1; } }
+.tabstage__status { position: absolute; z-index: 4; right: 12px; bottom: 12px; max-width: calc(100% - 24px); padding: 7px 10px; border-radius: 8px; background: rgba(20, 18, 24, .88); color: #fbf7ef; font-size: 12px; line-height: 1.5; opacity: 0; visibility: hidden; transition: opacity .25s; pointer-events: none; }
+.tabstage__status.is-on { opacity: 1; visibility: visible; }
 
 .tabpin {
   position: absolute;

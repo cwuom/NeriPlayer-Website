@@ -40,7 +40,7 @@ async function open(path = '/', options = {}) {
     return route.fulfill({ json: { stargazers_count: 3700, forks_count: 131 } });
   });
   await page.goto(base + path, { waitUntil: 'domcontentloaded' });
-  await page.waitForFunction(() => window.NP?.booted);
+  await page.waitForFunction(() => { window.NP?.preparePreviews?.(); return window.NP?.booted; });
   await page.evaluate(() => document.fonts.ready);
   return { page, apiRequests };
 }

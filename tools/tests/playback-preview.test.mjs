@@ -11,7 +11,7 @@ async function visit(run, width = 1440) {
     page.on('pageerror', error => errors.push(error.message));
     await page.route('**/__live', route => route.abort());
     await page.goto(process.env.SITE_URL || 'http://localhost:6060', { waitUntil: 'domcontentloaded' });
-    await page.waitForFunction(() => NP.booted);
+    await page.waitForFunction(() => { window.NP?.preparePreviews?.(); return NP.booted; });
     await page.locator('#devicePlay').scrollIntoViewIfNeeded();
     await page.waitForFunction(() => NP.player.playing);
     await run(page);

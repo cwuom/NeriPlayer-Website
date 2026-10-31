@@ -16,7 +16,7 @@ async function withPage(path, fn, touch = false) {
     page.on('pageerror', e => errors.push(e.message));
     await page.route('**/__live', route => route.abort());
     await page.goto(site + path, { waitUntil: 'domcontentloaded' });
-    await page.waitForFunction(() => window.NP?.booted);
+    await page.waitForFunction(() => { window.NP?.preparePreviews?.(); return window.NP?.booted; });
     await enablePreviewInteractions(page);
     assert.equal(await page.locator('[data-app-preview] .app-preview').count(), 2, 'settings and library must be real DOM simulations');
     await fn(page);
