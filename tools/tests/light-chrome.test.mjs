@@ -1,13 +1,14 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import { createRequire } from 'node:module';
-import { mkdirSync, writeFileSync } from 'node:fs';
+import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 
 const require = createRequire(import.meta.url);
 const { chromium } = require('playwright');
 const { PNG } = require('pngjs');
 const site = (process.env.SITE_URL || 'http://localhost:6060').replace(/\/$/, '');
+const glassCSS = readFileSync(new URL('../../assets/css/app-glass.css', import.meta.url), 'utf8');
 
 function luminance(rgb) {
   return rgb.map(value => {
@@ -39,6 +40,8 @@ async function readChrome(page) {
       label: { rect: label.getBoundingClientRect().toJSON(), color: color(getComputedStyle(label).color) },
       tint: color(getComputedStyle(mini, host.dataset.appStyle === 'material' ? '::before' : null).backgroundColor),
       mini: mini.getBoundingClientRect().toJSON(), nav: nav.getBoundingClientRect().toJSON(),
+      screen: host.getBoundingClientRect().toJSON(), screenScale: host.getBoundingClientRect().width / host.offsetWidth,
+      gestureMask: color(getComputedStyle(host, '::after').backgroundColor),
       scale: mini.getBoundingClientRect().width / mini.offsetWidth,
       blur: getComputedStyle(host.dataset.appStyle === 'material' ? mini : nav, host.dataset.appStyle === 'material' ? '::before' : null).backdropFilter,
       labels: [...nav.querySelectorAll('.ng-label')].filter(el => getComputedStyle(el).display !== 'none').map(el => ({ rect: el.getBoundingClientRect().toJSON(), text: el.textContent })),
@@ -53,6 +56,11 @@ function backgroundAt(png, text, dpr) {
   return [...png.data.subarray(offset, offset + 3)];
 }
 
+function pixelAt(png, x, y, dpr) {
+  const offset = (Math.round(y * dpr) * png.width + Math.round(x * dpr)) * 4;
+  return [...png.data.subarray(offset, offset + 3)];
+}
+
 for (const path of ['/', '/en/']) {
   test(`home chrome pairs readable light and dark colors without losing glass or DPI layout ${path}`, async t => {
     const browser = await chromium.launch({ executablePath: process.env.CHROME || '/Applications/Microsoft Edge.app/Contents/MacOS/Microsoft Edge', headless: true });
@@ -64,12 +72,14 @@ for (const path of ['/', '/en/']) {
         await page.route('**/__live', route => route.abort());
         await page.goto(site + path, { waitUntil: 'domcontentloaded' });
         await page.waitForFunction(() => { window.NP?.preparePreviews?.(); return window.NP?.booted; });
+        // 直接验证独立样式源，聚合文件由统一构建生成
+        await page.addStyleTag({ content: glassCSS });
         for (const style of ['material', 'clean']) for (const mode of ['light', 'dark']) {
           await page.locator(`#lab [data-app-style="${style}"]`).click();
           await page.locator(`#lab [data-mode="${mode}"]`).click();
           await page.locator('#deviceHome').scrollIntoViewIfNeeded();
           await page.waitForTimeout(550);
-          for (const density of [1, .6, 1.2]) {
+          for (const density of [1, .6, .85, 1.15, 1.2]) {
             await page.locator('#labScale').evaluate((range, value) => { range.value = value * 100; range.dispatchEvent(new Event('input', { bubbles: true })); }, density);
             await page.evaluate(() => new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve))));
             const chrome = await readChrome(page);
@@ -81,8 +91,8 @@ for (const path of ['/', '/en/']) {
               assert.ok(label.rect.height > 0 && label.rect.width > 0);
             }
             assert.notEqual(chrome.blur, 'none', 'theme changes keep the actual backdrop filter');
-            if (density !== 1) continue;
-            const name = `${path === '/' ? 'zh' : 'en'}-${style}-${mode}-${width}-dpr${dpr}`;
+            if (![.85, 1, 1.15].includes(density)) continue;
+            const name = `${path === '/' ? 'zh' : 'en'}-${style}-${mode}-${width}-dpr${dpr}-dpi${density}`;
             const screenshot = await page.locator('#deviceHome').screenshot();
             if (process.env.LIGHT_CHROME_ARTIFACTS) {
               mkdirSync(process.env.LIGHT_CHROME_ARTIFACTS, { recursive: true });
@@ -98,6 +108,17 @@ for (const path of ['/', '/en/']) {
             if (style === 'material' && mode === 'light') {
               assert.ok(luminance(chrome.tint.slice(0, 3)) > .5, `${name}: the sampled chrome must use a light secondary container`);
               assert.ok(titleContrast >= 4, `${name}: title contrast over the real radar artwork must not regress to the dark tint (${titleContrast})`);
+              const mini = pixelAt(pixels, chrome.mini.left + chrome.mini.width * .65, chrome.mini.top + chrome.mini.height / 2, dpr);
+              const nav = pixelAt(pixels, chrome.nav.left + chrome.nav.width * .2, chrome.nav.top + chrome.nav.height * .4, dpr);
+              assert.ok(luminance(mini) > .72 && luminance(nav) > .72, `${name}: light chrome must stay visibly white over dark artwork (${mini}; ${nav})`);
+              assert.equal(chrome.gestureMask[3], 0, `${name}: the gesture region must expose the same navigation glass`);
+              for (const fraction of [.2, .8]) {
+                const x = chrome.screen.left + chrome.screen.width * fraction;
+                const edge = chrome.screen.bottom - 24 * chrome.screenScale;
+                const upper = pixelAt(pixels, x, edge - 2 * chrome.screenScale, dpr);
+                const lower = pixelAt(pixels, x, edge + 2 * chrome.screenScale, dpr);
+                assert.ok(Math.max(...upper.map((channel, index) => Math.abs(channel - lower[index]))) <= 8, `${name}: navigation and gesture pixels must remain continuous (${upper}; ${lower})`);
+              }
             }
             t.diagnostic(`${name}: title ${titleContrast.toFixed(2)}, tab label ${labelContrast.toFixed(2)}`);
           }

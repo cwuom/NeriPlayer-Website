@@ -265,11 +265,12 @@
   }
 
   function bootShell() {
+    // 先读取滚动位置，再写入视口和主题，避免启动时强制重排整页
+    NP.smoothScroll.init();
     NP.measure(true);
     NP.motion.initTheme();
     nav.init();
     menu.init();
-    NP.smoothScroll.init();
     var hash = location.hash.replace('#', '');
     if (hash) navigateTo(hash, true);
     // 主题与导航先完成一次布局，动画装饰放到下个任务，避免合成长任务

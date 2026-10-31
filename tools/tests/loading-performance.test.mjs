@@ -7,6 +7,49 @@ const origin = process.env.SITE_URL || 'http://localhost:6060';
 const executablePath = process.env.CHROME || '/Applications/Microsoft Edge.app/Contents/MacOS/Microsoft Edge';
 
 for (const language of ['/', '/en/']) {
+  test(`shell samples the initial scroll before invalidating page layout ${language}`, async () => {
+    const browser = await chromium.launch({ executablePath, headless: true });
+    try {
+      const page = await browser.newPage({ viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true, reducedMotion: 'no-preference' });
+      await page.route('**/__live', route => route.abort());
+      await page.route('https://api.github.com/**', route => route.fulfill({ json: {} }));
+      await page.addInitScript(() => {
+        window.shellScrollReadsAfterWrite = 0;
+        let dirty = false;
+        let samplingScroll = false;
+        document.addEventListener('DOMContentLoaded', () => {
+          const init = NP.smoothScroll.init;
+          NP.smoothScroll.init = function () {
+            samplingScroll = true;
+            try { return init.apply(this, arguments); }
+            finally { samplingScroll = false; }
+          };
+        }, { once: true });
+        const setProperty = CSSStyleDeclaration.prototype.setProperty;
+        CSSStyleDeclaration.prototype.setProperty = function (name, value, priority) {
+          const result = setProperty.call(this, name, value, priority);
+          if (this === document.documentElement.style && name === '--vh') {
+            dirty = true;
+            setTimeout(() => { dirty = false; }, 0);
+          }
+          return result;
+        };
+        const scroll = Object.getOwnPropertyDescriptor(window, 'scrollY');
+        Object.defineProperty(window, 'scrollY', {
+          ...scroll,
+          get() {
+            if (dirty && samplingScroll) shellScrollReadsAfterWrite++;
+            return scroll.get.call(this);
+          },
+        });
+      });
+      await page.goto(origin + language, { waitUntil: 'domcontentloaded' });
+      await page.waitForFunction(() => NP.shellReady);
+      assert.equal(await page.evaluate(() => shellScrollReadsAfterWrite), 0, 'reading scrollY after the initial --vh write forces an avoidable full-page layout');
+      assert.equal(await page.evaluate(() => NP.scroll.y), await page.evaluate(() => window.scrollY));
+    } finally { await browser.close(); }
+  });
+
   test(`hero animation starts before full styles without measuring undecorated sections ${language}`, async () => {
     const browser = await chromium.launch({ executablePath, headless: true });
     let release;
@@ -17,7 +60,7 @@ for (const language of ['/', '/en/']) {
       page.on('pageerror', error => errors.push(error.message));
       await page.route('**/__live', route => route.abort());
       await page.route('https://api.github.com/**', route => route.fulfill({ json: {} }));
-      await page.route('**/site.css', async route => { await pending; await route.continue(); });
+      await page.route(url => url.pathname.endsWith('/site.css'), async route => { await pending; await route.continue(); });
       await page.addInitScript(() => {
         window.prematureSectionReads = 0;
         const rect = Element.prototype.getBoundingClientRect;
@@ -80,7 +123,7 @@ for (const language of ['/', '/en/']) {
     try {
       const page = await browser.newPage({ viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true, reducedMotion: 'no-preference' });
       await page.route('**/__live', route => route.abort());
-      await page.route('**/site.css', async route => { await pending; await route.continue(); });
+      await page.route(url => url.pathname.endsWith('/site.css'), async route => { await pending; await route.continue(); });
       await page.goto(origin + language, { waitUntil: 'commit' });
       const painted = await page.waitForFunction(() => performance.getEntriesByName('first-contentful-paint').length > 0, null, { timeout: 2000 }).then(() => true, () => false);
       assert.equal(painted, true, 'a slow offscreen phone stylesheet must not block the page');

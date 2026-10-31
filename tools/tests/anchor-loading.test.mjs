@@ -24,7 +24,7 @@ async function visit(path, { css, font } = {}) {
   page.on('pageerror', error => errors.push(error.message));
   await page.route('**/__live', route => route.abort());
   await page.route('https://api.github.com/**', route => route.fulfill({ json: {} }));
-  if (css) await page.route('**/site.css', async route => { await css.pending; await route.continue(); });
+  if (css) await page.route(url => url.pathname.endsWith('/site.css'), async route => { await css.pending; await route.continue(); });
   if (font) await page.route('**/fonts/geist.woff2', async route => { await font.pending; await route.continue(); });
   await page.goto(origin + path, { waitUntil: 'commit' });
   await page.waitForFunction(() => window.NP?.shellReady);

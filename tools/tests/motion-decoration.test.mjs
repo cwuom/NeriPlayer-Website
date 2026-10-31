@@ -177,7 +177,7 @@ async function stages(options, run) {
   await page.route('https://api.github.com/**', route => route.fulfill({ json: {} }));
   // 只替换启动入口，两个阶段都执行真实 motion 模块，样式按实际网络完成顺序释放
   await page.route('**/assets/js/main.js*', route => route.fulfill({ contentType: 'text/javascript', body: 'window.motionComponentFixture = true;' }));
-  await page.route('**/assets/css/site.css', async route => { await styles; await route.continue().catch(() => {}); });
+  await page.route(url => url.pathname.endsWith('/site.css'), async route => { await styles; await route.continue().catch(() => {}); });
   await page.addInitScript(({ noObserver }) => {
     window.motionOutsideReads = 0;
     window.motionHeroObservations = 0;

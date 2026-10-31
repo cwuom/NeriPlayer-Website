@@ -523,41 +523,54 @@
   function initSegs() {
     $$('.seg').forEach(function (seg) {
       var active = false;
-      function activate() {
+      function activate(event) {
         if (active) return;
         active = true;
         seg.removeEventListener('pointerdown', activate, true);
         seg.removeEventListener('focusin', activate, true);
         seg.removeEventListener('click', activate, true);
+        var fontsReady = document.fonts && document.fonts.status !== 'loaded' ? document.fonts.ready : null;
         var ind = document.createElement('span');
         ind.className = 'seg__ind';
         ind.setAttribute('aria-hidden', 'true');
-        seg.insertBefore(ind, seg.firstChild);
-        seg.classList.add('has-ind');
+        function geometry(button) {
+          var width = button ? button.offsetWidth : 0;
+          return width ? [width, button.offsetHeight, button.offsetLeft, button.offsetTop] : null;
+        }
+        // 首击可能在同一任务里换选项，先一次读完按钮，再连接滑块
+        var initial = $$('button', seg).map(function (button) { return { button: button, box: geometry(button) }; });
         var lastGeometry = '';
         function place(jump) {
           var on = $('button.is-on', seg);
-          var width = on ? on.offsetWidth : 0;
-          if (!width) { ind.hidden = true; lastGeometry = ''; return; }
-          var height = on.offsetHeight, left = on.offsetLeft, top = on.offsetTop;
-          var geometry = [width, height, left, top].join(',');
-          if (geometry === lastGeometry && !ind.hidden) return;
-          lastGeometry = geometry;
+          var hit = initial && initial.filter(function (item) { return item.button === on; })[0];
+          var box = hit ? hit.box : geometry(on);
+          if (!box) { ind.hidden = true; lastGeometry = ''; return; }
+          var key = box.join(',');
+          if (key === lastGeometry && !ind.hidden) return;
+          lastGeometry = key;
           ind.hidden = false;
           if (jump) ind.classList.add('is-jump');
-          ind.style.width = width + 'px';
-          ind.style.height = height + 'px';
-          ind.style.translate = left + 'px ' + top + 'px';
-          if (jump) { void ind.offsetWidth; ind.classList.remove('is-jump'); }
+          ind.style.width = box[0] + 'px';
+          ind.style.height = box[1] + 'px';
+          ind.style.translate = box[2] + 'px ' + box[3] + 'px';
+          if (jump && ind.isConnected) { void ind.offsetWidth; ind.classList.remove('is-jump'); }
         }
+        place(true);
+        seg.insertBefore(ind, seg.firstChild);
+        seg.classList.add('has-ind');
+        // 只提交过渡初态，不用尺寸读取强制布局；普通预热交给浏览器绘制
+        if (event) getComputedStyle(ind).transitionProperty;
+        ind.classList.remove('is-jump');
+        requestAnimationFrame(function () { initial = null; });
         new MutationObserver(function (records) {
           // 跳转标记不改变按钮几何，避免滑块响应自己的 class 写入
+          if (records.some(function (record) { return record.target === seg; })) initial = null;
           if (records.some(function (record) { return record.target !== ind; })) place(false);
         }).observe(seg, { subtree: true, attributes: true, attributeFilter: ['class'] });
-        place(true);
-        NP.onResize(function () { place(true); });
+        function refresh() { initial = null; place(true); }
+        NP.onResize(refresh);
         // 已完成的字体不再排跳转校准，避免覆盖首击刚开始的滑动
-        if (document.fonts && document.fonts.ready && document.fonts.status !== 'loaded') document.fonts.ready.then(function () { place(true); });
+        if (fontsReady) fontsReady.then(refresh);
         NP.whenVisible(seg, function () { place(true); });
       }
       // 首次输入可能早于可见性回调，先定位旧选中项再让按钮响应
@@ -612,4 +625,7 @@
     },
     initTheme: initTheme,
   };
+  // defer 执行时首屏已解析，不必等待后续演示脚本才开始原有入场动画
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', initHero, { once: true });
+  else initHero();
 })();

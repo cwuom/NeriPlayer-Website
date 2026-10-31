@@ -18,7 +18,7 @@ for (const language of ['/', '/en/']) {
       page.on('pageerror', error => errors.push(error.message));
       await page.route('**/__live', route => route.abort());
       await page.route('https://api.github.com/**', route => route.fulfill({ json: {} }));
-      await page.route('**/site.css', async route => {
+      await page.route(url => url.pathname.endsWith('/site.css'), async route => {
         if (++attempts === 1) { await route.fulfill({ status: 503, body: '', contentType: 'text/css' }); return; }
         await recovery;
         await route.continue();
@@ -54,7 +54,7 @@ test('persistent stylesheet failures stop after three requests and do not deadlo
     page.on('pageerror', error => errors.push(error.message));
     await page.route('**/__live', route => route.abort());
     await page.route('https://api.github.com/**', route => route.fulfill({ json: {} }));
-    await page.route('**/site.css', route => { attempts++; return route.fulfill({ status: 503, body: '', contentType: 'text/css' }); });
+    await page.route(url => url.pathname.endsWith('/site.css'), route => { attempts++; return route.fulfill({ status: 503, body: '', contentType: 'text/css' }); });
     await page.goto(origin, { waitUntil: 'commit' });
     await page.waitForFunction(() => window.NP?.shellReady && NP.baseReady && document.documentElement.classList.contains('np-style-error'));
     assert.equal(attempts, 3);

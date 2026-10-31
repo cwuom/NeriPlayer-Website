@@ -319,7 +319,7 @@ code {
 .notes--tight li > b:first-child { top: 9px; }
 .notes--cols { grid-template-columns: repeat(2, 1fr); column-gap: 40px; }
 
-.seg { display: inline-flex; padding: 3px; border: 1px solid var(--rule-2); border-radius: 999px; background: var(--card); }
+.seg { position: relative; display: inline-flex; padding: 3px; border: 1px solid var(--rule-2); border-radius: 999px; background: var(--card); }
 .seg button {
   padding: 5px 13px;
   border: 0;
@@ -3714,6 +3714,7 @@ code {
 .ph.np-glass-host[data-app-style="clean"].is-light { --ng-nav-tint:#fff;--ng-mini-tint:#fff }
 .np-glass-host[data-glass-liquid="off"] { --ng-mini-alpha:30%;--ng-nav-alpha:75%;--ng-edge:12%;--ng-saturation:1 }
 .np-glass-host.is-light[data-glass-liquid="off"],.app-preview.np-glass-host[data-mode="light"][data-glass-liquid="off"] { --ng-mini-alpha:36% }
+#phHome.is-light[data-app-style="material"] { --ng-mini-tint:color-mix(in srgb,var(--h-mini-tint) 12%,#fff);--ng-nav-tint:color-mix(in srgb,var(--h-nav-tint) 12%,#fff);--ng-mini-alpha:88%;--ng-nav-alpha:90% }
 .np-glass-host[data-glass-background="on"]::before { content:"";position:absolute;inset:calc(-3 * var(--ng-background-blur));z-index:0;pointer-events:none;background-image:var(--ng-background-image);background-position:center;background-size:cover;filter:blur(var(--ng-background-blur));opacity:var(--ng-background-alpha) }
 .app-preview.np-glass-host[data-glass-background="on"] .ap-scene { background:transparent }
 
@@ -3777,6 +3778,8 @@ code {
 .ph.np-glass-host .fxa-scroll { bottom:calc(24px / var(--ui,1));scroll-padding-bottom:164px }
 .ph.np-glass-host .fxa-list { padding-bottom:calc(164px + 24px / var(--ui,1)) }
 .ph.np-glass-host::after { content:"";position:absolute;z-index:4;pointer-events:none;left:0;right:0;bottom:0;height:24px;background:var(--ng-bg) }
+/* 首页导航已覆盖系统手势区，浅色下继续使用同一层玻璃 */
+#phHome.np-glass-host.is-light[data-app-style="material"]::after { background:transparent }
 .ng-nav svg { transform-origin:center }
 .app-preview.np-glass-host .ap-bottom::before { content:"";position:absolute;z-index:-1;pointer-events:none;left:0;right:0;bottom:0;height:16px;background:var(--ng-bg) }
 .ph.np-glass-host .ph__gesture { z-index:7 }

@@ -24,6 +24,15 @@ for (const language of ['', 'en/']) {
     }
   });
 
+  test(`preloaded, deferred and noscript styles share their exact content version ${language || 'zh/'}`, async () => {
+    const page = new URL(language + 'index.html', root);
+    const html = await readFile(page, 'utf8');
+    const references = [...html.matchAll(/href="((?:\.\.\/)?assets\/css\/site\.css[^"#]*)"/g)];
+    assert.equal(references.length, 3);
+    const expected = createHash('sha256').update(await readFile(new URL('assets/css/site.css', root))).digest('hex').slice(0, 12);
+    for (const [, path] of references) assert.equal(new URL(path, page).searchParams.get('v'), expected, path);
+  });
+
   test(`new HTML never consumes cached unversioned scripts ${language || 'zh/'}`, async () => {
     const browser = await chromium.launch({ executablePath, headless: true });
     try {
@@ -36,6 +45,11 @@ for (const language of ['', 'en/']) {
         if (new URL(route.request().url()).searchParams.has('v')) return route.continue();
         cached.push(route.request().url());
         return route.fulfill({ contentType: 'text/javascript', body: 'throw new Error("stale cached script")' });
+      });
+      await page.route(url => url.pathname.endsWith('/site.css'), route => {
+        if (new URL(route.request().url()).searchParams.has('v')) return route.continue();
+        cached.push(route.request().url());
+        return route.fulfill({ contentType: 'text/css', body: '.seg { position:static }' });
       });
       await page.goto(origin + '/' + language, { waitUntil: 'domcontentloaded' });
       await page.waitForFunction(() => window.NP?.shellReady);
@@ -51,12 +65,12 @@ for (const language of ['', 'en/']) {
   });
 }
 
-test('script version generation is repeatable', async () => {
-  const { versionScriptUrls } = await import('../version-assets.mjs');
+test('asset version generation is repeatable', async () => {
+  const { versionAssetUrls } = await import('../version-assets.mjs');
   for (const language of ['', 'en/']) {
     const page = new URL(language + 'index.html', root);
     const html = await readFile(page, 'utf8');
-    assert.equal(await versionScriptUrls(html, page), html);
+    assert.equal(await versionAssetUrls(html, page), html);
   }
 });
 

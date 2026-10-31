@@ -14,7 +14,7 @@ async function visit(options, run) {
   page.on('pageerror', error => errors.push(error.message));
   await page.route('**/__live', route => route.abort());
   await page.route('https://api.github.com/**', route => route.fulfill({ json: {} }));
-  await page.addInitScript(({ fixture, holdObserver, withoutObserver }) => {
+  await page.addInitScript(({ fixture, holdObserver, withoutObserver, coldClick }) => {
     if (withoutObserver) delete window.IntersectionObserver;
     if (holdObserver) {
       const NativeObserver = window.IntersectionObserver;
@@ -34,6 +34,20 @@ async function visit(options, run) {
       };
     }
     window.segmentProbeReads = {};
+    window.segmentActivationEvents = [];
+    const fontReady = Object.getOwnPropertyDescriptor(FontFaceSet.prototype, 'ready');
+    Object.defineProperty(FontFaceSet.prototype, 'ready', {
+      ...fontReady,
+      get() {
+        if (window.traceSegmentActivation) window.segmentActivationEvents.push({ kind: 'read', property: 'fonts.ready' });
+        return fontReady.get.call(this);
+      },
+    });
+    const insertBefore = Node.prototype.insertBefore;
+    Node.prototype.insertBefore = function (child, before) {
+      if (window.traceSegmentActivation && this.matches?.('[data-segment-probe]') && child.matches?.('.seg__ind')) window.segmentActivationEvents.push({ kind: 'insert', probe: this.dataset.segmentProbe });
+      return insertBefore.call(this, child, before);
+    };
     for (const property of ['offsetWidth', 'offsetHeight', 'offsetLeft', 'offsetTop']) {
       const descriptor = Object.getOwnPropertyDescriptor(HTMLElement.prototype, property);
       Object.defineProperty(HTMLElement.prototype, property, {
@@ -41,6 +55,7 @@ async function visit(options, run) {
         get() {
           const probe = this.tagName === 'BUTTON' && this.closest('[data-segment-probe]');
           if (probe) window.segmentProbeReads[probe.dataset.segmentProbe] = (window.segmentProbeReads[probe.dataset.segmentProbe] || 0) + 1;
+          if (window.traceSegmentActivation && (probe || this.matches('.seg__ind'))) window.segmentActivationEvents.push({ kind: 'read', property, indicator: this.matches('.seg__ind') });
           return descriptor.get.call(this);
         },
       });
@@ -63,8 +78,8 @@ async function visit(options, run) {
           if (!selected) return;
           const indicator = seg.querySelector('.seg__ind');
           const sample = seg._segmentSample = {
-            from: indicator && parseFloat(getComputedStyle(indicator).translate),
-            target: selected.offsetLeft,
+            from: indicator && parseFloat(coldClick ? indicator.style.translate : getComputedStyle(indicator).translate),
+            target: coldClick ? seg._segmentExpectedLeft : selected.offsetLeft,
           };
           seg.querySelectorAll('button').forEach(button => button.classList.toggle('is-on', button === selected));
           requestAnimationFrame(() => {
@@ -100,6 +115,25 @@ for (const path of ['/', '/en/']) {
       });
       assert.equal(await page.evaluate(() => segmentProbeReads.far || 0), 0, 'global resize and font readiness must leave distant buttons untouched');
       assert.notEqual(await distant.locator('button.is-on').evaluate(button => getComputedStyle(button).backgroundColor), 'rgba(0, 0, 0, 0)', 'the ordinary selected button keeps its ink before the sliding indicator is prepared');
+    });
+  });
+
+  test('native segment coordinates remain local before and after the viewport changes ' + path, async () => {
+    await visit({ path, withoutObserver: true }, async page => {
+      await page.waitForFunction(() => NP.booted);
+      const inspect = () => [...document.querySelectorAll('.seg')].filter(seg => seg.querySelector('button.is-on')?.offsetWidth).map(seg => {
+        const button = seg.querySelector('button.is-on'), indicator = seg.querySelector('.seg__ind');
+        return { width: parseFloat(indicator.style.width), height: parseFloat(indicator.style.height), left: parseFloat(indicator.style.translate), top: parseFloat(indicator.style.translate.split(' ')[1]), expectedWidth: button.offsetWidth, expectedHeight: button.offsetHeight, expectedLeft: button.offsetLeft, expectedTop: button.offsetTop };
+      });
+      for (const viewport of [{ width: 390, height: 844 }, { width: 1024, height: 768 }]) {
+        await page.setViewportSize(viewport);
+        await page.evaluate(() => NP.measure(true));
+        const boxes = await page.evaluate(inspect);
+        assert.ok(boxes.length >= 10, 'exercise the actual page theme, lyrics, platform and desktop controls');
+        for (const box of boxes) {
+          for (const key of ['Width', 'Height', 'Left', 'Top']) assert.equal(box[key.toLowerCase()], box['expected' + key], key + ' must keep the original integer offset coordinates at ' + viewport.width + 'px');
+        }
+      }
     });
   });
 }
@@ -148,6 +182,42 @@ test('capture activation preserves the first real click and keyboard slide even 
     }
     await page.evaluate(() => releaseSegmentObservers());
     for (const id of fixtures) assert.equal(await page.locator('#' + id + ' .seg__ind').count(), 1);
+  });
+});
+
+test('cold click activation reads geometry before insertion and keeps the first slide without a layout flush', async () => {
+  await visit({ fixture: 'capture', holdObserver: true, coldClick: true }, async page => {
+    const events = await page.locator('#segmentFixture').evaluate(async seg => {
+      seg._segmentExpectedLeft = seg.querySelectorAll('button')[1].offsetLeft;
+      window.segmentActivationEvents = [];
+      window.traceSegmentActivation = true;
+      seg.querySelectorAll('button')[1].click();
+      await new Promise(resolve => setTimeout(resolve, 0));
+      window.traceSegmentActivation = false;
+      return segmentActivationEvents;
+    });
+    const firstWrite = events.findIndex(event => event.kind === 'insert');
+    assert.ok(firstWrite > 0, 'the initial selected geometry must be measured before its indicator is connected');
+    assert.deepEqual(events.slice(firstWrite + 1).filter(event => event.kind === 'read'), [], 'initial activation and its first selection must not force geometry after the DOM has been dirtied');
+    await page.waitForFunction(() => document.getElementById('segmentFixture')._segmentSample?.middle != null);
+    const sample = await page.locator('#segmentFixture').evaluate(seg => seg._segmentSample);
+    assert.equal(sample.duration, 550, 'the first click must retain the full CSS slide without a test-side computed-style or geometry flush');
+    assert.ok(sample.middle > sample.from && sample.middle < sample.target, 'the cold click must visibly pass through intermediate positions');
+  });
+});
+
+test('a resize in the activation frame refreshes the initial geometry instead of using stale button positions', async () => {
+  await visit({ fixture: 'capture', holdObserver: true, coldClick: true }, async page => {
+    const geometry = await page.locator('#segmentFixture').evaluate(seg => {
+      seg._segmentExpectedLeft = seg.querySelectorAll('button')[1].offsetLeft;
+      seg.addEventListener('click', () => {
+        seg.style.paddingLeft = '17px';
+        NP.measure(true);
+      }, { once: true });
+      seg.querySelectorAll('button')[1].click();
+      return { actual: parseFloat(seg.querySelector('.seg__ind').style.translate), expected: seg.querySelector('button.is-on').offsetLeft };
+    });
+    assert.equal(geometry.actual, geometry.expected, 'explicit resize calibration must use the new local coordinates, including before the first animation frame');
   });
 });
 

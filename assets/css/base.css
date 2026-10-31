@@ -316,7 +316,7 @@ code {
 .notes--tight li > b:first-child { top: 9px; }
 .notes--cols { grid-template-columns: repeat(2, 1fr); column-gap: 40px; }
 
-.seg { display: inline-flex; padding: 3px; border: 1px solid var(--rule-2); border-radius: 999px; background: var(--card); }
+.seg { position: relative; display: inline-flex; padding: 3px; border: 1px solid var(--rule-2); border-radius: 999px; background: var(--card); }
 .seg button {
   padding: 5px 13px;
   border: 0;
