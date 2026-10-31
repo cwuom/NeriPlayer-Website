@@ -13,7 +13,12 @@ export async function versionAssetUrls(html, page) {
     const bytes = await readFile(new URL(path, page));
     return [path, createHash('sha256').update(bytes).digest('hex').slice(0, 12)];
   })));
-  return html.replace(pattern, (_match, attribute, path) => `${attribute}="${path}?v=${versions.get(path)}"`);
+  const fontHash = createHash('sha256');
+  for (const name of ['content-fonts', 'desktop-fonts', 'phone-fonts']) fontHash.update(name).update(await readFile(new URL('assets/css/' + name + '.css', root)));
+  const fontVersion = fontHash.digest('hex').slice(0, 12);
+  return html.replace(pattern, (_match, attribute, path) => `${attribute}="${path}?v=${versions.get(path)}"`)
+    .replace(/\bhref="((?:\.\.\/)?assets\/css\/(?:content|desktop|phone)-fonts\.css)(?:\?v=[a-f0-9]+)?"/g, (_match, path) => `href="${path}?v=${fontVersion}"`)
+    .replace(/<script\b[^>]*\bsrc="[^" ]*\/main\.js[^" ]*"[^>]*>/g, tag => tag.replace(/\sdata-font-version="[^"]*"/g, '').replace('>', ` data-font-version="${fontVersion}">`));
 }
 
 async function main() {

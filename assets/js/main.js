@@ -17,32 +17,73 @@
   }
 
   var fontGroups = [
-    { files: ['content-fonts', 'desktop-fonts'], selector: '.station', margin: '200px 0px' },
+    { files: ['content-fonts', 'desktop-fonts'], selector: '.station,.footer', margin: '200px 0px' },
     { files: ['phone-fonts'], selector: '.device:not(.is-shot)', margin: '1200px 0px' },
   ];
   var assetBase = document.currentScript.src.replace(/[?#].*$/, '').replace(/js\/main\.js$/, 'css/');
+  var fontVersion = document.currentScript.dataset && document.currentScript.dataset.fontVersion;
   function loadFonts(group) {
     if (group.pending) return group.pending;
+    var loaded = group.loaded || (group.loaded = {});
     group.pending = Promise.all(group.files.map(function (name) {
+      if (loaded[name]) return true;
       return new Promise(function (resolve) {
-        var link = document.createElement('link');
-        link.rel = 'stylesheet';
-        link.href = assetBase + name + '.css';
-        link.dataset.contentFont = name;
-        link.onload = function () { resolve(true); };
-        link.onerror = function () { link.remove(); resolve(false); };
-        document.head.appendChild(link);
+        var attempts = 0;
+        function request() {
+          var link = document.createElement('link');
+          link.rel = 'stylesheet';
+          link.href = assetBase + name + '.css' + (fontVersion ? '?v=' + fontVersion : '');
+          link.dataset.contentFont = name;
+          attempts++;
+          link.onload = function () { loaded[name] = true; resolve(true); };
+          link.onerror = function () {
+            link.remove();
+            if (attempts < 3) setTimeout(request, attempts === 1 ? 250 : 750);
+            else resolve(false);
+          };
+          document.head.appendChild(link);
+        }
+        request();
       });
     })).then(function (results) {
       if (results.indexOf(false) !== -1) group.pending = null;
+      return results.indexOf(false) === -1;
     });
     return group.pending;
   }
+  var fontSections = new WeakMap();
+  function prepareSectionFonts(section) {
+    if (fontSections.has(section)) return fontSections.get(section);
+    var pending = Promise.all([stylesLoaded, loadFonts(fontGroups[0])]).then(function (ready) {
+      if (!ready[1]) { fontSections.delete(section); return false; }
+      section.setAttribute('data-fonts-preparing', '');
+      return new Promise(function (resolve) {
+        // 先让浏览器按此章节的真实字体栈请求字形，避免遍历仿真器或强制加载平台未选用的字体
+        requestAnimationFrame(function () { setTimeout(function () {
+          var fontsReady = document.fonts ? document.fonts.ready : Promise.resolve();
+          fontsReady.then(function () {
+            section.setAttribute('data-fonts-ready', '');
+            section.removeAttribute('data-fonts-preparing');
+            resolve(true);
+          }, function () {
+            section.removeAttribute('data-fonts-preparing');
+            fontSections.delete(section);
+            resolve(false);
+          });
+        }, 0); });
+      });
+    });
+    fontSections.set(section, pending);
+    return pending;
+  }
   function fontsFor(target) {
     if (!target || target.id === 'top') return Promise.resolve();
-    return Promise.all(fontGroups.filter(function (group) {
-      return group === fontGroups[0] || target.matches(group.selector) || target.querySelector(group.selector) || target.closest(group.selector);
-    }).map(loadFonts));
+    var section = target.closest('.station,.footer');
+    var pending = section ? [prepareSectionFonts(section)] : [loadFonts(fontGroups[0])];
+    fontGroups.slice(1).forEach(function (group) {
+      if (target.matches(group.selector) || target.querySelector(group.selector) || target.closest(group.selector)) pending.push(loadFonts(group));
+    });
+    return Promise.all(pending);
   }
   var previewSelector = '.device:not(.is-shot),[data-app-preview],#deskStage';
   function prepareFor(target) {
@@ -50,10 +91,24 @@
     return Promise.resolve();
   }
   function initFontLoading() {
-    fontGroups.forEach(function (group) {
-      if (!window.IntersectionObserver) { loadFonts(group); return; }
+    fontGroups.forEach(function (group, index) {
+      if (!window.IntersectionObserver) {
+        if (index === 0) $$(group.selector).forEach(prepareSectionFonts);
+        else loadFonts(group);
+        return;
+      }
       var observer = new IntersectionObserver(function (entries) {
-        if (entries.some(function (entry) { return entry.isIntersecting; })) { loadFonts(group); observer.disconnect(); }
+        if (index === 0) {
+          entries.forEach(function (entry) {
+            if (entry.isIntersecting) prepareSectionFonts(entry.target).then(function (ready) {
+              if (ready) observer.unobserve(entry.target);
+            });
+          });
+          return;
+        }
+        if (entries.some(function (entry) { return entry.isIntersecting; })) loadFonts(group).then(function (ready) {
+          if (ready) observer.disconnect();
+        });
       }, { rootMargin: group.margin });
       $$(group.selector).forEach(function (el) { observer.observe(el); });
     });
@@ -328,7 +383,10 @@
     var pending = styles.length;
     function afterStyles() {
       // 先让浏览器应用完整样式，再测量演示区域，避免在脚本任务中同步重排整页
-      requestAnimationFrame(function () { setTimeout(startJobs, 0); });
+      requestAnimationFrame(function () { requestAnimationFrame(function () {
+        document.documentElement.classList.add('np-styles-ready');
+        setTimeout(startJobs, 0);
+      }); });
     }
     function styleReady(state, link, failed) {
       if (state.ready || state.current !== link) return;
@@ -373,8 +431,8 @@
   function startJobs() {
     initFontLoading();
     fadeImages();
-    NP.demos.init();
     NP.measure(true);
+    NP.demos.init();
     relayout();
     NP.baseReady = true;
     stylesReady();

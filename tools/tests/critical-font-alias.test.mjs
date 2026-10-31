@@ -10,8 +10,8 @@ test('fixed first-screen roles use complete-run aliases while the shared font st
   const css = await read('assets/css/base.css');
   assert.match(css, /--serif: "Fraunces", "NP Serif"/);
   assert.match(css, /--hand: "Caveat", "NP Hand"/);
-  assert.match(css, /\.hero \.display, \.nav__name, \.menu__list a \{ font-family: "Fraunces Critical", var\(--serif\); \}/);
-  assert.match(css, /\.hero__note, \.hero__scroll \{ font-family: "Caveat Critical", var\(--hand\); \}/);
+  assert.match(css, /body \{\s*--serif: "Fraunces Critical", "NP Serif Critical"/);
+  assert.match(css, /--hand: "Caveat Critical", "NP Hand Critical"/);
   assert.match(css, /\.menu__list i \{[^}]*font-family: var\(--mono\)/);
   assert.match(css, /\.menu__list small \{[^}]*font-family: var\(--mono\)/);
   const generated = await buildCriticalCss();
@@ -34,5 +34,5 @@ test('the unchanged title intro waits for the alias faces actually drawing the t
   const source = await read('assets/js/motion.js');
   assert.ok(source.includes('document.fonts.load(\'400 64px "Fraunces Critical"\', sample)'));
   assert.ok(source.includes('document.fonts.load(\'italic 400 64px "Fraunces Critical"\', sample)'));
-  assert.ok(source.includes('document.fonts.load(\'400 64px "NP Serif"\', sample)'));
+  assert.ok(source.includes('document.fonts.load(\'400 64px "NP Serif Critical"\', sample)'));
 });

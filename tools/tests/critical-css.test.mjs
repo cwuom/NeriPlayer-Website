@@ -23,7 +23,7 @@ async function generate(sources) {
 
 async function fullStyles() {
   const html = await readFile(new URL('index.html', root), 'utf8');
-  const paths = [...new Set([...html.matchAll(/href=["'](assets\/css\/[^"']+\.css)["']/g)].map(match => match[1]))].filter(path => !path.endsWith('/critical.css'));
+  const paths = [...new Set([...html.matchAll(/href=["'](assets\/css\/[^"?#]+\.css)(?:\?[^"']*)?["']/g)].map(match => match[1]))].filter(path => !path.endsWith('/critical.css'));
   return (await Promise.all(paths.map(path => readFile(new URL(path, root), 'utf8')))).join('\n').replaceAll('../fonts/', '/assets/fonts/');
 }
 
@@ -213,7 +213,7 @@ test('critical CSS keeps the same real Chinese sans face before full fonts arriv
     await page.goto(base + '/', { waitUntil: 'domcontentloaded' });
     await page.evaluate(() => {
       document.querySelectorAll('link[rel="stylesheet"], style').forEach(node => node.remove());
-      document.documentElement.style.setProperty('--sans', '"Geist", "MiSans", system-ui, sans-serif');
+      document.body.style.setProperty('--sans', '"Geist", "MiSans Critical", system-ui, sans-serif');
     });
     await page.addStyleTag({ content: (await readFile(new URL('assets/css/critical.css', root), 'utf8')).replaceAll('../fonts/', '/assets/fonts/') });
     await settle(page);
@@ -224,6 +224,7 @@ test('critical CSS keeps the same real Chinese sans face before full fonts arriv
     const { nodeId } = await session.send('DOM.querySelector', { nodeId: documentRoot.nodeId, selector: '.hero .lead' });
     const faces = async () => (await session.send('CSS.getPlatformFontsForNode', { nodeId })).fonts.map(font => ({ family: font.familyName, custom: font.isCustomFont, glyphs: font.glyphCount })).sort((a, b) => a.family.localeCompare(b.family));
     const before = await faces();
+    assert.ok(before.some(face => /MiSans/.test(face.family) && face.custom && face.glyphs > 0), 'the probe must actually render Chinese with the critical MiSans face');
     await page.addStyleTag({ content: await fullStyles() });
     await settle(page);
     assert.deepEqual(before, await faces(), 'declared font-family equality must also preserve the font actually drawing Chinese text');

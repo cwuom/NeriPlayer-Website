@@ -419,13 +419,14 @@
       });
       if (tween.t >= 1) tween = null;
     });
+    var started = false;
     btns.forEach(function (b) {
       b.addEventListener('click', function () {
+        started = true;
         btns.forEach(function (o) { var on = o === b; o.classList.toggle('is-on', on); o.setAttribute('aria-selected', on ? 'true' : 'false'); });
         render(parseInt(b.getAttribute('data-r'), 10));
       });
     });
-    var started = false;
     NP.whenVisible(svg, function () { if (!started) { started = true; render(1); } });
   }
 
@@ -673,17 +674,35 @@
     } else { seen = true; sync(); }
   }
 
+  function initNear(selector, initialize) {
+    var root = $(selector);
+    if (!root) return;
+    var prepared = false;
+    function prepare() {
+      if (prepared) return;
+      prepared = true;
+      ['pointerdown', 'focusin', 'click'].forEach(function (type) { root.removeEventListener(type, prepare, true); });
+      initialize();
+    }
+    // 快速跳转或键盘输入也要在目标控件响应前完成准备
+    ['pointerdown', 'focusin', 'click'].forEach(function (type) { root.addEventListener(type, prepare, true); });
+    NP.whenVisible(root, prepare, null, '1200px 0px');
+  }
+
+  var initialized = false;
   NP.demos = {
     init: function () {
-      initSteps();
+      if (initialized) return;
+      initialized = true;
+      initNear('#play', initSteps);
       initTablet();
-      initSrcIndex();
+      initNear('#sources', initSrcIndex);
       initLinkTyping();
       initChain();
-      initRoom();
+      initNear('#room', initRoom);
       initOffline();
       initDownloads();
-      initStats();
+      initNear('#statsDemo', initStats);
       initDev();
       initCopy();
       initFaq();

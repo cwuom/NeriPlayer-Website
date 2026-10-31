@@ -2,11 +2,14 @@
    NeriPlayer · 音理线手账 —— 基础：字体、令牌、纸张、排版、通用组件、导航与页脚
    ========================================================================== */
 
-@font-face { font-family: "Fraunces Critical"; src: url("../fonts/fraunces-critical.woff2") format("woff2"); font-weight: 100 900; font-style: normal; font-display: swap; unicode-range: U+0020, U+0026, U+002C-002E, U+0041, U+0044, U+0046, U+0048-0049, U+004C-004E, U+0050-0051, U+0053-0054, U+0061-0069, U+006B-0070, U+0072-0077, U+0079-007A; }
-@font-face { font-family: "Fraunces Critical"; src: url("../fonts/fraunces-italic-critical.woff2") format("woff2"); font-weight: 100 900; font-style: italic; font-display: swap; unicode-range: U+0041, U+0064, U+0069, U+006E-006F, U+0072; }
-@font-face { font-family: "NP Serif"; src: url("../fonts/np-serif-critical.woff2") format("woff2"); font-weight: 200 900; font-style: normal; font-display: swap; unicode-range: U+3002, U+4E00, U+4E0B, U+4E0E, U+4E2A, U+4E3B, U+4F18, U+5148, U+539F, U+540C, U+542C, U+5728, U+5730, U+591A, U+5E38, U+5E73, U+6027, U+64AD, U+653E, U+6548, U+672C, U+677F, U+6784, U+684C, U+6B4C, U+6B63, U+6B65, U+6E90, U+751F, U+79BB, U+79C1, U+7AEF, U+7EBF, U+7EC6, U+8282, U+89C1, U+8BCD, U+8D28, U+8D77, U+8F7D, U+9020, U+95EE, U+9690, U+9762, U+97F3, U+9875, U+9898, U+9996, U+FF0C; }
-@font-face { font-family: "NP Hand"; src: url("../fonts/np-hand-critical.woff2") format("woff2"); font-weight: 400; font-display: swap; unicode-range: U+4E00, U+4E5F, U+4ECA, U+5417, U+542C, U+665A, U+6B4C, U+8D77, U+FF1F; }
-@font-face { font-family: "Caveat Critical"; src: url("../fonts/caveat-critical.woff2") format("woff2"); font-weight: 400 700; font-display: swap; unicode-range: U+0020, U+003F, U+004C, U+0063, U+0065, U+0067-0069, U+006C, U+006E-006F, U+0072-0074; }
+@font-face { font-family: "Fraunces Critical"; src: url("../fonts/fraunces-critical.woff2") format("woff2"); font-weight: 100 900; font-style: normal; font-display: swap; }
+@font-face { font-family: "Fraunces Critical"; src: url("../fonts/fraunces-italic-critical.woff2") format("woff2"); font-weight: 100 900; font-style: italic; font-display: swap; }
+@font-face { font-family: "NP Serif Critical"; src: url("../fonts/np-serif-critical.woff2") format("woff2"); font-weight: 200 900; font-style: normal; font-display: swap; }
+@font-face { font-family: "NP Hand Critical"; src: url("../fonts/np-hand-critical.woff2") format("woff2"); font-weight: 400; font-display: swap; }
+@font-face { font-family: "Caveat Critical"; src: url("../fonts/caveat-critical.woff2") format("woff2"); font-weight: 400 700; font-display: swap; }
+@font-face { font-family: "MiSans Critical"; src: url("../fonts/misans-500-critical.woff2") format("woff2"); font-weight: 500; font-display: swap; }
+@font-face { font-family: "MiSans Critical"; src: url("../fonts/misans-600-critical.woff2") format("woff2"); font-weight: 600; font-display: swap; }
+@font-face { font-family: "MiSans Critical"; src: url("../fonts/misans-700-critical.woff2") format("woff2"); font-weight: 700; font-display: swap; }
 @font-face { font-family: "Geist"; src: url("../fonts/geist.woff2") format("woff2"); font-weight: 100 900; font-display: swap; }
 @font-face { font-family: "Geist Mono"; src: url("../fonts/geist-mono.woff2") format("woff2"); font-weight: 100 900; font-display: swap; }
 
@@ -36,6 +39,9 @@
   --sans: "Geist", "PingFang SC", "HarmonyOS Sans SC", "MiSans", "Microsoft YaHei UI", "Microsoft YaHei", "Noto Sans SC", system-ui, sans-serif;
   --mono: "Geist Mono", "JetBrains Mono", "SF Mono", Consolas, "PingFang SC", "Microsoft YaHei", monospace;
   --hand: "Caveat", "NP Hand", "LXGW WenKai", "Kaiti SC", "STKaiti", "KaiTi", cursive;
+  --full-serif: var(--serif);
+  --full-sans: var(--sans);
+  --full-hand: var(--hand);
 
   --wrap: 1220px;
   --pad: clamp(20px, 5vw, 56px);
@@ -68,6 +74,9 @@ html {
 html.is-locked { overflow: hidden; }
 
 body {
+  --serif: "Fraunces Critical", "NP Serif Critical", "Songti SC", "STSong", "Noto Serif SC", "Source Han Serif SC", serif;
+  --sans: "Geist", "PingFang SC", "HarmonyOS Sans SC", "MiSans Critical", "Microsoft YaHei UI", "Microsoft YaHei", "Noto Sans SC", system-ui, sans-serif;
+  --hand: "Caveat Critical", "NP Hand Critical", "LXGW WenKai", "Kaiti SC", "STKaiti", "KaiTi", cursive;
   margin: 0;
   min-height: 100vh;
   font-family: var(--sans);
@@ -83,6 +92,13 @@ body {
     linear-gradient(var(--grid) 1px, transparent 1px),
     linear-gradient(90deg, var(--grid) 1px, transparent 1px);
   background-size: 220px 220px, 24px 24px, 24px 24px;
+}
+
+.station[data-fonts-preparing], .station[data-fonts-ready], .footer[data-fonts-preparing], .footer[data-fonts-ready], .no-js body {
+  --serif: var(--full-serif);
+  --sans: var(--full-sans);
+  --hand: var(--full-hand);
+  font-family: var(--sans);
 }
 
 main, .footer { overflow-x: clip; }
@@ -575,10 +591,6 @@ code {
 .menu.is-open .menu__list a { opacity: 1; transform: none; }
 .menu__list i { width: 26px; font-style: normal; font-family: var(--mono); font-size: 11px; font-weight: 600; color: var(--red); }
 .menu__list small { margin-left: auto; font-family: var(--mono); font-size: 11px; letter-spacing: .12em; text-transform: uppercase; color: var(--ink-3); }
-
-/* 固定首屏文本整段使用同一子集，正文继续保留完整字体的字偶距 */
-.hero .display, .nav__name, .menu__list a { font-family: "Fraunces Critical", var(--serif); }
-.hero__note, .hero__scroll { font-family: "Caveat Critical", var(--hand); }
 
 /* --------------------------------------------------------------------------
    页脚

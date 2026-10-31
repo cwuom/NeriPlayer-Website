@@ -8,6 +8,13 @@ const root = new URL('../../', import.meta.url);
 const { chromium } = createRequire(import.meta.url)('playwright');
 const origin = process.env.SITE_URL || 'http://localhost:6068';
 const executablePath = process.env.CHROME || '/Applications/Microsoft Edge.app/Contents/MacOS/Microsoft Edge';
+const fontStyles = ['content-fonts', 'desktop-fonts', 'phone-fonts'];
+
+async function fontStyleVersion() {
+  const hash = createHash('sha256');
+  for (const name of fontStyles) hash.update(name).update(await readFile(new URL('assets/css/' + name + '.css', root)));
+  return hash.digest('hex').slice(0, 12);
+}
 
 for (const language of ['', 'en/']) {
   test(`every script URL identifies its exact contents ${language || 'zh/'}`, async () => {
@@ -33,6 +40,16 @@ for (const language of ['', 'en/']) {
     for (const [, path] of references) assert.equal(new URL(path, page).searchParams.get('v'), expected, path);
   });
 
+  test(`lazy font styles are bound to the HTML generation ${language || 'zh/'}`, async () => {
+    const html = await readFile(new URL(language + 'index.html', root), 'utf8');
+    const main = html.match(/<script\b[^>]*\bsrc="[^" ]*\/main\.js[^" ]*"[^>]*>/)?.[0];
+    assert.ok(main);
+    assert.equal(main.match(/data-font-version="([a-f0-9]+)"/)?.[1], await fontStyleVersion());
+    const styles = [...html.matchAll(/href="((?:\.\.\/)?assets\/css\/(?:content|desktop|phone)-fonts\.css[^"#]*)"/g)];
+    assert.equal(styles.length, 3, 'the no-script fallback must retain all complete font stylesheets');
+    for (const [, href] of styles) assert.equal(new URL(href, new URL(language + 'index.html', root)).searchParams.get('v'), await fontStyleVersion());
+  });
+
   test(`new HTML never consumes cached unversioned scripts ${language || 'zh/'}`, async () => {
     const browser = await chromium.launch({ executablePath, headless: true });
     try {
@@ -51,6 +68,11 @@ for (const language of ['', 'en/']) {
         cached.push(route.request().url());
         return route.fulfill({ contentType: 'text/css', body: '.seg { position:static }' });
       });
+      await page.route(url => /\/(?:content|desktop|phone)-fonts\.css$/.test(url.pathname), route => {
+        if (new URL(route.request().url()).searchParams.has('v')) return route.continue();
+        cached.push(route.request().url());
+        return route.fulfill({ contentType: 'text/css', body: '/* stale font ranges */' });
+      });
       await page.goto(origin + '/' + language, { waitUntil: 'domcontentloaded' });
       await page.waitForFunction(() => window.NP?.shellReady);
       await page.evaluate(() => NP.preparePreviews());
@@ -64,6 +86,24 @@ for (const language of ['', 'en/']) {
     } finally { await browser.close(); }
   });
 }
+
+test('the no-script page avoids cached font ranges from the older font families', async () => {
+  const browser = await chromium.launch({ executablePath, headless: true });
+  try {
+    const page = await browser.newPage({ viewport: { width: 390, height: 844 }, javaScriptEnabled: false });
+    const stale = [], requested = [];
+    await page.route(url => /\/(?:content|desktop|phone)-fonts\.css$/.test(url.pathname), route => {
+      requested.push(route.request().url());
+      if (new URL(route.request().url()).searchParams.has('v')) return route.continue();
+      stale.push(route.request().url());
+      return route.fulfill({ contentType: 'text/css', body: '/* cached complementary font ranges */' });
+    });
+    await page.goto(origin, { waitUntil: 'load' });
+    assert.equal(requested.length, 3);
+    assert.deepEqual(stale, []);
+    assert.doesNotMatch(await page.locator('.hero .lead').evaluate(el => getComputedStyle(el).fontFamily), /Critical/);
+  } finally { await browser.close(); }
+});
 
 test('asset version generation is repeatable', async () => {
   const { versionAssetUrls } = await import('../version-assets.mjs');

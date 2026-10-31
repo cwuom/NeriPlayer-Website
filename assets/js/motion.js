@@ -597,7 +597,7 @@
       Promise.all([
         document.fonts.load('400 64px "Fraunces Critical"', sample),
         document.fonts.load('italic 400 64px "Fraunces Critical"', sample),
-        document.fonts.load('400 64px "NP Serif"', sample),
+        document.fonts.load('400 64px "NP Serif Critical"', sample),
       ]).then(start, start);
       setTimeout(start, 1200);
     } else start();

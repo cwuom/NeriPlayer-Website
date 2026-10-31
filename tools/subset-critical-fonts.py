@@ -8,6 +8,7 @@ The existing full fonts remain the source of truth and cover noncritical text.
 """
 
 import argparse
+from copy import deepcopy
 from html.parser import HTMLParser
 from pathlib import Path
 import re
@@ -28,7 +29,7 @@ FACES = {
     "np-hand": ("NP Hand", "400", None),
     "caveat": ("Caveat", "400 700", None),
 }
-CRITICAL_ALIASES = {"fraunces": "Fraunces Critical", "fraunces-italic": "Fraunces Critical", "caveat": "Caveat Critical"}
+CRITICAL_ALIASES = {"fraunces": "Fraunces Critical", "fraunces-italic": "Fraunces Critical", "caveat": "Caveat Critical", "np-serif": "NP Serif Critical", "np-hand": "NP Hand Critical"}
 GEIST_FACES = [
     '@font-face { font-family: "Geist"; src: url("../fonts/geist.woff2") format("woff2"); font-weight: 100 900; font-display: swap; }',
     '@font-face { font-family: "Geist Mono"; src: url("../fonts/geist-mono.woff2") format("woff2"); font-weight: 100 900; font-display: swap; }',
@@ -100,10 +101,18 @@ def critical_codepoints():
 def fallback_jobs():
     characters = set()
     for path in [ROOT / "index.html", ROOT / "en" / "index.html"]:
-        hero = re.search(r'<section class="hero"[\s\S]*?</section>', path.read_text(encoding="utf-8"))
+        html = path.read_text(encoding="utf-8")
+        hero = re.search(r'<section class="hero"[\s\S]*?</section>', html)
         if not hero:
             raise ValueError(f"No hero section found in {path}")
         characters.update(ord(character) for character in hero.group() if ord(character) >= 0x2E80)
+        for shell in re.finditer(r'<(header|aside|div|a)\b[^>]*class="(?:nav|route|menu|skip)(?:\s[^"]*)?"[^>]*>([\s\S]*?)</\1>', html):
+            characters.update(ord(character) for character in re.sub(r'<[^>]*>', '', shell[2]) if ord(character) >= 0x2E80)
+    github = (ROOT / "assets" / "js" / "github.js").read_text(encoding="utf-8")
+    cta = re.search(r'var CTA = \{[\s\S]*?(?=\n  NP\.github =)', github)
+    if not cta:
+        raise ValueError("No dynamic first-screen CTA labels found")
+    characters.update(ord(character) for character in cta.group() if ord(character) >= 0x2E80)
     css = (ROOT / "assets" / "css" / "desktop-fonts.css").read_text(encoding="utf-8")
     jobs = []
     for body in re.findall(r'@font-face\s*\{([^}]+)\}', css):
@@ -122,7 +131,7 @@ def fallback_jobs():
             points.update(point for point in characters if first <= point <= last)
         if points:
             shard = source[1] + ".woff2"
-            jobs.append((FONTS / "misans-400" / shard, FONTS / "misans-400-critical" / shard, points))
+            jobs.append((FONTS / "misans-400" / shard, FONTS / "misans-400-shell-critical" / shard, points))
     if not jobs:
         raise ValueError("No first-screen MiSans fallback characters found")
     return jobs
@@ -143,7 +152,8 @@ def face(name, suffix, points):
     if suffix == "-critical":
         family = CRITICAL_ALIASES.get(name, family)
     style = f" font-style: {style};" if style else ""
-    return f'@font-face {{ font-family: "{family}"; src: url("../fonts/{name}{suffix}.woff2") format("woff2"); font-weight: {weight};{style} font-display: swap; unicode-range: {unicode_ranges(points)}; }}'
+    ranges = "" if suffix == "-critical" else f" unicode-range: {unicode_ranges(points)};"
+    return f'@font-face {{ font-family: "{family}"; src: url("../fonts/{name}{suffix}.woff2") format("woff2"); font-weight: {weight};{style} font-display: swap;{ranges} }}'
 
 
 def update_css(jobs, check):
@@ -155,6 +165,9 @@ def update_css(jobs, check):
             assert points.isdisjoint(remaining) and points | remaining == original, "font partitions must cover the original cmap without overlap"
         critical.append(face(name, "-critical", points))
         content.append(face(name, "", remaining))
+    fallback_points = set().union(*(points for _, _, points in fallback_jobs()))
+    for weight in [500, 600, 700]:
+        critical.append(f'@font-face {{ font-family: "MiSans Critical"; src: url("../fonts/misans-{weight}-critical.woff2") format("woff2"); font-weight: {weight}; font-display: swap; }}')
     path = ROOT / "assets" / "css" / "base.css"
     css = path.read_text(encoding="utf-8")
     faces = list(re.finditer(r'^@font-face \{[^\n]+\}\n', css, re.MULTILINE))
@@ -189,7 +202,7 @@ def verify(original, critical, points):
         assert critical["avar"].segments == original["avar"].segments, "variable axis mappings must survive"
     if "STAT" in original:
         assert critical["STAT"].compile(critical) == original["STAT"].compile(original), "variation style metadata must survive"
-    metrics = {"head": ["unitsPerEm"], "hhea": ["ascent", "descent", "lineGap"], "OS/2": ["sTypoAscender", "sTypoDescender", "sTypoLineGap", "usWinAscent", "usWinDescent"]}
+    metrics = {"head": ["unitsPerEm"], "hhea": ["ascent", "descent", "lineGap"], "OS/2": ["sTypoAscender", "sTypoDescender", "sTypoLineGap", "usWinAscent", "usWinDescent", "usWeightClass", "usWidthClass"]}
     if "vhea" in original:
         metrics["vhea"] = ["ascent", "descent", "lineGap"]
     for table, fields in metrics.items():
@@ -226,6 +239,8 @@ def build_subset(source, target, points, check):
         subsetter = subset.Subsetter(options)
         subsetter.populate(unicodes=points)
         subsetter.subset(font)
+        # GSUB 子集可能移除未使用的功能名，许可证和原始命名仍完整保留
+        font["name"] = deepcopy(original["name"])
         font.flavor = "woff2"
         target.parent.mkdir(parents=True, exist_ok=True)
         font.save(target)
@@ -248,6 +263,9 @@ def run(check, fallback_only=False):
         update_css(jobs, check)
     for source, target, points in fallback_jobs():
         build_subset(source, target, points, check)
+    fallback_points = set().union(*(points for _, _, points in fallback_jobs()))
+    for weight in [500, 600, 700]:
+        build_subset(FONTS / f"misans-{weight}.woff2", FONTS / f"misans-{weight}-critical.woff2", fallback_points, check)
 
 
 if __name__ == "__main__":
