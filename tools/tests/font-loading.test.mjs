@@ -1,10 +1,17 @@
 import assert from 'node:assert/strict';
 import { createRequire } from 'node:module';
+import { readFile } from 'node:fs/promises';
 import test from 'node:test';
 
 const { chromium } = createRequire(import.meta.url)('playwright');
 const origin = process.env.SITE_URL || 'http://localhost:6060';
 const executablePath = process.env.CHROME || '/Applications/Microsoft Edge.app/Contents/MacOS/Microsoft Edge';
+const root = new URL('../../', import.meta.url);
+
+async function fontNames(paths) {
+  const styles = await Promise.all(paths.map(path => readFile(new URL('assets/css/' + path, root), 'utf8')));
+  return styles.flatMap(css => [...css.matchAll(/url\("\.\.\/fonts\/([^"?]+\.woff2)(?:\?[^"]*)?"\)/g)].map(match => match[1].split('/').pop()));
+}
 
 async function open(path, options = {}) {
   const browser = await chromium.launch({ executablePath, headless: true });
@@ -32,10 +39,13 @@ for (const language of ['/', '/en/']) {
     const { browser, page, errors } = await open(language);
     try {
       const fonts = await page.evaluate(() => performance.getEntriesByType('resource').filter(entry => /\.woff2(?:$|\?)/.test(entry.name)).map(entry => entry.name.split('/').pop()));
-      for (const name of ['fraunces.woff2', 'fraunces-italic.woff2', 'np-serif.woff2', 'np-hand.woff2', 'roboto.woff2', 'np-phone-cjk.woff2', 'misans-600.woff2']) {
+      for (const name of await fontNames(['content-fonts.css', 'phone-fonts.css', 'desktop-fonts.css'])) {
         assert.ok(!fonts.includes(name), `${name} must wait until its content is nearby`);
       }
-      assert.ok(fonts.includes('fraunces-critical.woff2'));
+      const heroFonts = await fontNames(['base.css']);
+      const titleFont = heroFonts.find(name => /^fraunces-[a-f0-9]{12}-critical\.woff2$/.test(name));
+      assert.ok(titleFont, 'the actual normal title alias must be registered');
+      assert.ok(fonts.includes(titleFont), titleFont + ' must draw the title');
       const before = await page.locator('.hero h1').boundingBox();
       await page.locator('#download').scrollIntoViewIfNeeded();
       await waitForStyles(page, ['content-fonts', 'desktop-fonts']);

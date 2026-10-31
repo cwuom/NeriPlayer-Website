@@ -190,6 +190,10 @@ for (const path of ['/', '/en/']) for (const width of [320, 390, 1440]) {
         await page.locator('#burger').click();
         await page.waitForFunction(() => document.querySelector('#menu').classList.contains('is-open'));
         await settle(page);
+        await page.waitForFunction(() => [...document.querySelectorAll('#menu, #menu .menu__list a')].every(node => {
+          const style = getComputedStyle(node);
+          return style.opacity === '1' && style.transform === 'none';
+        }));
         const menuGeometry = () => page.locator('#menu, #menu .menu__inner, #menu .menu__list, #menu .menu__list a').evaluateAll(nodes => nodes.map(node => {
           const box = node.getBoundingClientRect(), style = getComputedStyle(node);
           return { x: box.x, y: box.y, width: box.width, height: box.height, color: style.color, font: style.fontFamily, opacity: style.opacity };

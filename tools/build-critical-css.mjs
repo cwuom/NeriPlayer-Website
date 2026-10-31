@@ -130,7 +130,8 @@ function fallbackRules(css, characters) {
 
 export function extractCriticalCss(sources, { fallbackCss = '', characters = new Set() } = {}) {
   const parsed = sources.flatMap(source => rules(source));
-  parsed.push(...fallbackRules(fallbackCss, characters));
+  const hasCriticalCjk = parsed.some(rule => rule.header === '@font-face' && /font-family:\s*["']MiSans Critical["']/.test(rule.body) && /font-weight:\s*400\s*;/.test(rule.body) && /-critical\.woff2/.test(rule.body));
+  if (!hasCriticalCjk) parsed.push(...fallbackRules(fallbackCss, characters));
   const animationNames = new Set();
   const criticalFonts = new Set(parsed.filter(rule => rule.header === '@font-face' && /-critical(?:\.woff2|\/)/.test(rule.body)).map(rule => /font-family:\s*["']?([^;"']+)/.exec(rule.body)?.[1].trim()));
   function keep(rule) {
@@ -198,7 +199,7 @@ export async function buildCriticalCss() {
     Promise.all(['index.html', 'en/index.html'].map(path => readFile(new URL(path, root), 'utf8'))),
     readFile(new URL('assets/js/github.js', root), 'utf8'),
   ]);
-  // 字形子集保留原 MiSans 分片边界与字重，完整桌面字体按原路径延后加载
+  // 首屏与完整字体各自收集字集，避免正文加载改变已经显示的首屏字形
   const characters = new Set();
   for (const page of pages) {
     const hero = /<section class="hero"[\s\S]*?<\/section>/.exec(page)?.[0];
@@ -217,14 +218,35 @@ export async function buildCriticalCss() {
   return extractCriticalCss(sources, { fallbackCss, characters });
 }
 
+export function syncCriticalFontPreloads(html, css) {
+  const faces = rules(css).filter(rule => rule.header === '@font-face');
+  function source(family, weight = null, style = null) {
+    const matches = faces.filter(rule => rule.body.includes(`font-family:"${family}";`) && (weight === null || (Number(/(?:^|;)font-weight:(\d+)(?:;|$)/.exec(rule.body)?.[1] || 400) === weight)) && (style === null || (/font-style:([^;]+)/.exec(rule.body)?.[1] || 'normal') === style));
+    if (matches.length !== 1) throw new Error(`Expected one ${family} ${weight || ''} critical font`);
+    const href = /url\("\.\.\/fonts\/([^"?]+)"\)/.exec(matches[0].body)?.[1];
+    if (!href) throw new Error(`Missing ${family} critical font URL`);
+    return 'assets/fonts/' + href;
+  }
+  const cjk = source('MiSans Critical', 400);
+  let foundCjk = false;
+  const output = html.replace(/<link\b[^>]*\bdata-hero-cjk\b[^>]*>\n?/g, tag => {
+    if (foundCjk) return '';
+    foundCjk = true;
+    return tag.replace(/href="[^"]+"/, `href="${cjk}"`);
+  }).replace(/href="assets\/fonts\/(fraunces(?:-italic)?|np-serif|np-hand|caveat)(?:-[a-f0-9]+)?-critical\.woff2"/g, (_match, role) => {
+    const family = { fraunces: 'Fraunces Critical', 'fraunces-italic': 'Fraunces Critical', 'np-serif': 'NP Serif Critical', 'np-hand': 'NP Hand Critical', caveat: 'Caveat Critical' }[role];
+    return `href="${source(family, null, role.startsWith('fraunces') ? (role.endsWith('italic') ? 'italic' : 'normal') : null)}"`;
+  });
+  if (!foundCjk) throw new Error('Critical CJK font preload not found');
+  return output;
+}
+
 if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
   const output = await buildCriticalCss();
   const target = new URL('assets/css/critical.css', root);
   const page = new URL('index.html', root);
   const html = await readFile(page, 'utf8');
-  const fallbackDirectory = /\/fonts\/(misans-400[^/]+)\/\d+\.woff2/.exec(output)?.[1];
-  if (!fallbackDirectory) throw new Error('Critical CJK font directory not found');
-  const preloaded = html.replace(/(<link\b[^>]*href="assets\/fonts\/)misans-400[^/" ]+(\/[^" ]+"[^>]*\bdata-hero-cjk\b[^>]*>)/g, '$1' + fallbackDirectory + '$2');
+  const preloaded = syncCriticalFontPreloads(html, output);
   const inline = '<style id="critical-css">\n' + output.replaceAll('../fonts/', 'assets/fonts/') + '</style>';
   const entry = /<style id="critical-css">[\s\S]*?<\/style>|<link rel="stylesheet" href="assets\/css\/critical\.css">/;
   if (!entry.test(html)) throw new Error('Critical stylesheet entry not found in index.html');

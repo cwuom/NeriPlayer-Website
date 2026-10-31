@@ -3111,3 +3111,143 @@ The YouTube Music capabilities mentioned here only cover account sessions, playb
 @51d905e68f  html  div.footer__bottom
 # <span>© NeriPlayer developers</span> <a href="#top" data-go="">回到顶部 ↑</a>
 <span>© NeriPlayer developers</span> <a href="#top" data-go>Back to top ↑</a>
+
+@37efca2ffb  html  title
+# NeriPlayer · 音理音理！— 手机与电脑的音乐播放器
+NeriPlayer — a music player for your phone and computer
+
+@40368ec8ac  attr  meta[content]
+# NeriPlayer（音理音理！）把网易云音乐、哔哩哔哩、YouTube Music 与本地歌曲放进同一个播放器，支持逐字歌词、音效调节、一起听和自建歌单同步。Android 9+，另有 Windows、macOS 与 Linux 桌面预览版。免费开源，没有广告。
+NeriPlayer brings NetEase Cloud Music, Bilibili, YouTube Music and your local songs together, with word-by-word lyrics, sound controls, Listen Together and playlist sync to your own storage. For Android 9+, with desktop previews for Windows, macOS and Linux. Free, open source and ad-free.
+
+@c5131bb626  html  h1.display#hero-title
+# <span class="display__line">多源在线，</span> <span class="display__line">本地优先，</span> <span class="display__line">从掌心到<em class="ul">桌面{{0}}</em></span>
+<span class="display__line">Many sources,</span> <span class="display__line">local first,</span> <span class="display__line">hand to <em class="ul">desktop{{0}}</em></span>
+
+@d7e2efeb2a  html  p.hand
+# GPL-3.0 Licensed · 由你可爱的驱动。
+GPL-3.0 Licensed · Lovingly powered by you.
+
+@659a90b833  html  p.lead
+# 常听的歌，总在不同地方。NeriPlayer 把网易云音乐、哔哩哔哩、YouTube Music 和本地歌曲放进同一个播放器，歌单与记录优先留在本地。在手机或电脑上，都能用熟悉的方式听歌。
+The songs you love live in different places. NeriPlayer brings NetEase Cloud Music, Bilibili, YouTube Music and local songs into one player, keeping playlists and listening history on your device by default. A familiar way to listen, on your phone or computer.
+
+@72e63fd5c4  html  p.lead
+# 先选手机还是电脑，再挑一个匹配设备的安装包，就能开始听。版本号、文件大小和 SHA-256 校验值直接取自 GitHub Releases，免费，也没有广告。
+Choose your phone or computer, then pick the right download for your device and start listening. Version numbers, file sizes and SHA-256 checksums come straight from GitHub Releases. Free to use, with no ads.
+
+@f945a36d1b  html  p.lead
+# 白天或入夜，都有合适的样子。Clean 留白简洁，Material You 色彩丰富，两套界面都备好了浅色和深色模式。切换看看，选自己喜欢的那一种。
+A look for daylight and late nights. Clean keeps things simple and spacious; Material You brings more color. Both offer light and dark modes. Try switching between them and see what feels right.
+
+@dde4a46896  html  p.lead
+# 放一首歌，封面的颜色也在背景里缓缓流动。切换主题和沉浸布局，点一下播放《星轨》，拖动进度或查看歌词；想安静看看时，下方按钮可随时静音。
+Play a song and watch its cover colors drift through the background. Try the themes and immersive layout, press play for Startrail, then drag the progress bar or follow the lyrics. Use the mute button below whenever you would rather just look.
+
+@1875149778  html  p.lead
+# 正在唱的那一句会被点亮，原文与译文上下对照。时间差了半拍，可以手动微调；遇到喜欢的词，还能做成卡片，留给自己或分享给朋友。
+The line being sung lights up, with its translation just below. If the timing is a little off, adjust it by hand. Turn a favorite line into a card to keep or share with a friend.
+
+@728acc3c9a  html  p.lead
+# 网易云音乐的歌单、哔哩哔哩的现场、YouTube Music 与本地歌曲，各有值得听的声音。搜索按平台分开，找到的歌可以加入同一份播放队列，下一首接着听。
+From NetEase Cloud Music playlists and Bilibili live performances to YouTube Music and local songs, there is plenty to discover. Search each platform separately, then add the songs you find to one queue and keep listening.
+
+@42469af948  html  p.lead
+# 接上耳机，认真听一张专辑。手机连接兼容的外置解码器后，可使用 USB 独占输出；在合适的硬件与音源下，让音频绕过系统混音，直接交给解码设备。
+Put on your headphones and give an album your full attention. Connect a compatible external digital-to-analog converter (DAC) to your phone to use USB exclusive output. With suitable hardware and source audio, the sound can bypass the system mixer and go straight to the DAC.
+
+@8fc5a0a798  html  p.lead
+# 每副耳机听起来不同，每个人也有喜欢的声音。手机和电脑共用 29 种音效预设，还能手动调整人声、低音和各个频段。放一首熟悉的歌，慢慢调到顺耳。
+No two headphones sound quite alike, and everyone has their own taste. The phone and desktop apps share 29 sound presets, with manual controls for vocals, bass and individual frequency bands. Play a familiar song and take your time finding the sound you like.
+
+@6ca15015ce  html  p.lead
+# 和朋友不在一起，也能听同一段副歌。建个房间，分享邀请，让曲目和播放进度随房间同步。隔着一段距离，耳机里仍有共同的旋律。
+Share a chorus, even when your friends are far away. Create a room and send an invite to keep tracks and playback in sync. Wherever you are, there is a melody you can share.
+
+@ccd34099a0  html  p.lead
+# 没信号的路上，也能有歌相伴。设备里存下的歌曲和已有缓存，断网后仍能继续播放。歌单、记录和设置都留在本机，熟悉的音乐还在手边。
+Even where there is no signal, music can keep you company. Songs on your device and music already cached remain available offline. Playlists, history and settings stay on the device, keeping familiar music close at hand.
+
+@434b401dac  html  p.lead
+# 换一台设备，喜欢的歌也不必从头整理。用自己的 GitHub 仓库或 WebDAV 网盘，同步歌单、收藏和听歌记录；保存在哪里，由你自己决定。
+Changing devices does not mean starting your playlists from scratch. Sync playlists, favorites and listening history through your own GitHub repository or WebDAV storage. You choose where they are kept.
+
+@bb5daab4e2  html  p.lead
+# 每个人顺手的界面，都不太一样。默认打开哪一页、主题颜色、界面大小、歌词字号和首页布局，都能自己调整，慢慢变成你习惯的样子。
+Everyone has their own way of getting around. Choose which page opens first, adjust theme colors, interface and lyric sizes, and arrange the home page to suit your habits.
+
+@5fb701f135  html  p.lead
+# 屏幕大了，选歌和看词也更从容。横屏时，封面与歌词并排，设置列表与详情也能同时展开。下面四张是 App 在平板模拟器中的实际画面。
+A bigger screen gives your music room to breathe. In landscape, cover art and lyrics sit side by side, as do settings lists and details. These four images show the app running in a tablet emulator.
+
+@c64f7b7da3  html  p.lead
+# 写字、工作的时候，熟悉的歌也在电脑上陪着你。Windows、macOS 与 Linux 预览版支持桌面歌词和快捷键切歌，也能和手机同步歌单，或加入同一个一起听房间。
+Let familiar songs keep you company while you write or work. The Windows, macOS and Linux previews support desktop lyrics and keyboard shortcuts for changing tracks. They can also sync playlists with your phone and join the same Listen Together room.
+
+@e024071857  html  p.lead
+# 那些每天都会碰到的小地方，也认真照顾到了。桌面小组件、长按快捷入口和迷你播放条手势，让操作少点几下；长音频还会记住上次听到的位置。
+The little things you use every day deserve care, too. Home screen widgets, long-press shortcuts and mini-player gestures save a few taps. Playback also remembers your place in long recordings.
+
+@a286d8b828  html  p.lead
+# 从播放、歌词到同步，每个听歌的细节都有代码在背后照顾。想了解实现，下面是十四个 Android 模块的分工。代码都在 GitHub 上，觉得好用，欢迎点一颗 Star 支持项目。
+Code takes care of the details behind playback, lyrics and sync. Below, fourteen Android modules show how the work is divided. It is all on GitHub. If you find the app useful, a Star is a simple way to support the project.
+
+@b9b7f479e9  html  p.eyebrow
+# <b>00</b><span class="eyebrow__rule"></span>音理音理！· 手机与电脑的音乐播放器
+<b>00</b><span class="eyebrow__rule"></span>NeriPlayer · Music for phones and computers
+
+@5da3a2a263  html  p.small
+# 支持 Android 9 及以上，另有 Windows、macOS 与 Linux 桌面预览版。免费开源，GPL-3.0。
+For Android 9 and later, with desktop previews for Windows, macOS and Linux. Free and open source under GPL-3.0.
+
+@d9f7d2b057  attr  meta[content]
+# 多源在线，本地优先。从掌心到桌面，网易云音乐、哔哩哔哩、YouTube Music 与本地歌曲，一个播放器接着听。免费开源，没有广告。
+Many sources, local first. From your hand to your desktop: NetEase Cloud Music, Bilibili, YouTube Music and local songs in one player. Free, open source and ad-free.
+
+@6c6a0558c9  html  summary
+# <i class="hand">Q.</i>本地歌曲能和在线歌曲放进同一张歌单吗？
+<i class="hand">Q.</i>Can local and online songs share a playlist?
+
+@d18489623d  html  p
+# 可以。在本地歌曲列表中多选歌曲，再用“导出到歌单”加入自建歌单，就能和在线歌曲一起管理。
+Yes. Select songs in your local library, then choose “Export to Playlist” to add them to a playlist of your own, alongside online tracks.
+
+@0b772de532  html  summary
+# <i class="hand">Q.</i>换个设备，歌单和下载的歌都会同步吗？
+<i class="hand">Q.</i>Will my playlists and downloads sync to another device?
+
+@357a6e04ec  html  p
+# 把设备连到同一个 GitHub 或 WebDAV 同步位置，歌单、收藏、历史和统计就能同步。下载的音频不会一起上传，需要在新设备另外准备。
+Connect both devices to the same GitHub or WebDAV sync location to sync playlists, favorites, listening history and statistics. Audio downloads are not uploaded; you will need to transfer or download them separately on the other device.
+
+@a092d7a46a  html  summary
+# <i class="hand">Q.</i>原来网易云里缓存的歌，能直接用吗？
+<i class="hand">Q.</i>Can NeriPlayer use songs cached by the NetEase Cloud Music app?
+
+@b61fbf6c60  html  p
+# 一般不能，原版网易云的私有缓存受系统隔离。想减少重复流量，可以在 NeriPlayer 里下载歌曲；文件可用时会优先本地播放。
+Usually not: that app’s private cache is isolated by Android. To save data, download songs in NeriPlayer; it will prefer the local copy when the file is available.
+
+@f225bec6a6  html  summary
+# <i class="hand">Q.</i>YouTube Music 登录了，为什么还是打不开？
+<i class="hand">Q.</i>Why won’t YouTube Music load after I sign in?
+
+@b529af4229  html  p
+# 先用当前网络和账号打开 YouTube Music 网页版，确认能正常使用。它仍受网络、地区和账号限制，登录成功不代表内容一定可访问。
+First, try the YouTube Music website with the same network and account. Network, region and account restrictions still apply, so signing in alone does not guarantee access to its content.
+
+@0945524446  html  summary
+# <i class="hand">Q.</i>有电脑版吗？在哪里下载？
+<i class="hand">Q.</i>Is there a desktop version, and where can I get it?
+
+@148811718f  html  p
+# 有。NeriPlayer Desktop 支持 Windows、macOS 和 Linux，可以从桌面仓库的 Releases 下载。现在仍是预览版，按自己的系统和芯片选择安装包即可。
+Yes. NeriPlayer Desktop is available for Windows, macOS and Linux from its GitHub Releases page. It is still a preview; choose the package for your operating system and processor.
+
+@f1a18fd41e  html  summary
+# <i class="hand">Q.</i>下载的歌在其他播放器里歌词不正常，怎么办？
+<i class="hand">Q.</i>What if lyrics look wrong in another player after downloading a song?
+
+@f788e06fc6  html  p
+# 可以在下载设置里开启“元信息后处理”和“标准化歌词嵌入”，再重新下载试试。后者会把写入音频的逐字歌词转成更通用的逐行 LRC，方便其他播放器识别。
+Try enabling metadata post-processing and “Standardized lyric embedding” in download settings, then download the song again. The latter converts embedded word-by-word lyrics to more widely supported line-by-line LRC.

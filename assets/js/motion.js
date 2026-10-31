@@ -587,6 +587,7 @@
     var start = function () {
       if (started) return;
       started = true;
+      observe(true);
       requestAnimationFrame(function () {
         setTimeout(function () { var h = $('.hero'); if (h) h.classList.add('is-intro'); }, 60);
       });
@@ -609,7 +610,6 @@
     if (heroInitialized) return;
     heroInitialized = true;
     if (!reduced) decorate();
-    observe(true);
     startHero();
   }
 

@@ -35,7 +35,7 @@ async function heldPage(holdFonts = false) {
     pending.push(task);
     return task;
   });
-  if (holdFonts) await page.route(/\/(?:fraunces-critical|fraunces-italic-critical|np-serif-critical)\.woff2(?:\?.*)?$/, route => {
+  if (holdFonts) await page.route(/\/(?:fraunces(?:-italic)?|np-serif)(?:-[a-f0-9]{12})?-critical\.woff2(?:\?.*)?$/, route => {
     const task = fonts.promise.then(() => route.continue());
     pending.push(task);
     return task;
@@ -150,7 +150,9 @@ test('eager hero preserves the 1200ms font barrier and its original title animat
     const waiting = await page.waitForFunction(() => window.heroProbe.fontLoads.length === 3, null, { timeout: 2500 }).then(() => true, () => false);
     assert.equal(waiting, true, 'hero must start its font barrier before the deferred script gates release: ' + JSON.stringify(await state(page)));
     await page.waitForTimeout(900);
-    assert.equal((await state(page)).intro, false, 'unavailable title fonts must not skip the original waiting period');
+    const beforeFonts = await state(page);
+    assert.equal(beforeFonts.intro, false, 'unavailable title fonts must not skip the original waiting period');
+    assert.equal(beforeFonts.leadIn, false, 'the lead must wait with the title instead of revealing fallback glyphs before the font barrier');
     await page.waitForFunction(() => document.querySelector('.hero').classList.contains('is-intro'), null, { timeout: 2500 });
     const fallback = await state(page);
     assert.equal(fallback.dcl, null);

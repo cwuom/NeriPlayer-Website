@@ -17,6 +17,21 @@ async function fontStyleVersion() {
 }
 
 for (const language of ['', 'en/']) {
+  test(`hero script preloads match their deferred execution URLs ${language || 'zh/'}`, async () => {
+    const html = await readFile(new URL(language + 'index.html', root), 'utf8');
+    const preloads = [...html.matchAll(/<link\b[^>]*href="([^"]+)"[^>]*as="script"[^>]*>/g)];
+    assert.equal(preloads.length, 2);
+    for (const [, href] of preloads) {
+      assert.match(href, /\/(core|motion)\.js\?v=[a-f0-9]{12}$/);
+      const script = [...html.matchAll(/<script\b[^>]*>/g)].map(match => match[0]).find(tag => tag.includes(`src="${href}"`));
+      assert.ok(script && /\bdefer(?:\s|=)/.test(script) && script.includes('fetchpriority="high"'), 'preloading must not change execution order or fetch a second script version');
+      const asset = new URL(href, new URL(language + 'index.html', root));
+      const version = asset.searchParams.get('v');
+      asset.search = '';
+      assert.equal(version, createHash('sha256').update(await readFile(asset)).digest('hex').slice(0, 12));
+    }
+  });
+
   test(`every script URL identifies its exact contents ${language || 'zh/'}`, async () => {
     const page = new URL(language + 'index.html', root);
     const html = await readFile(page, 'utf8');

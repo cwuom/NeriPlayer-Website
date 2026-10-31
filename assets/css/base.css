@@ -2,14 +2,15 @@
    NeriPlayer · 音理线手账 —— 基础：字体、令牌、纸张、排版、通用组件、导航与页脚
    ========================================================================== */
 
-@font-face { font-family: "Fraunces Critical"; src: url("../fonts/fraunces-critical.woff2") format("woff2"); font-weight: 100 900; font-style: normal; font-display: swap; }
-@font-face { font-family: "Fraunces Critical"; src: url("../fonts/fraunces-italic-critical.woff2") format("woff2"); font-weight: 100 900; font-style: italic; font-display: swap; }
-@font-face { font-family: "NP Serif Critical"; src: url("../fonts/np-serif-critical.woff2") format("woff2"); font-weight: 200 900; font-style: normal; font-display: swap; }
-@font-face { font-family: "NP Hand Critical"; src: url("../fonts/np-hand-critical.woff2") format("woff2"); font-weight: 400; font-display: swap; }
-@font-face { font-family: "Caveat Critical"; src: url("../fonts/caveat-critical.woff2") format("woff2"); font-weight: 400 700; font-display: swap; }
-@font-face { font-family: "MiSans Critical"; src: url("../fonts/misans-500-critical.woff2") format("woff2"); font-weight: 500; font-display: swap; }
-@font-face { font-family: "MiSans Critical"; src: url("../fonts/misans-600-critical.woff2") format("woff2"); font-weight: 600; font-display: swap; }
-@font-face { font-family: "MiSans Critical"; src: url("../fonts/misans-700-critical.woff2") format("woff2"); font-weight: 700; font-display: swap; }
+@font-face { font-family: "Fraunces Critical"; src: url("../fonts/fraunces-6dc3b85ae96f-critical.woff2") format("woff2"); font-weight: 100 900; font-style: normal; font-display: swap; }
+@font-face { font-family: "Fraunces Critical"; src: url("../fonts/fraunces-italic-8c8d5cfacdac-critical.woff2") format("woff2"); font-weight: 100 900; font-style: italic; font-display: swap; }
+@font-face { font-family: "NP Serif Critical"; src: url("../fonts/np-serif-fd6eccc6f6de-critical.woff2") format("woff2"); font-weight: 200 900; font-style: normal; font-display: swap; }
+@font-face { font-family: "NP Hand Critical"; src: url("../fonts/np-hand-8a0093060611-critical.woff2") format("woff2"); font-weight: 400; font-display: swap; }
+@font-face { font-family: "Caveat Critical"; src: url("../fonts/caveat-8f7e8778d00e-critical.woff2") format("woff2"); font-weight: 400 700; font-display: swap; }
+@font-face { font-family: "MiSans Critical"; src: url("../fonts/misans-400-ba217028279c-critical.woff2") format("woff2"); font-weight: 400; font-display: swap; }
+@font-face { font-family: "MiSans Critical"; src: url("../fonts/misans-500-1e96e8e368e2-critical.woff2") format("woff2"); font-weight: 500; font-display: swap; }
+@font-face { font-family: "MiSans Critical"; src: url("../fonts/misans-600-bc0b5e1c2f5e-critical.woff2") format("woff2"); font-weight: 600; font-display: swap; }
+@font-face { font-family: "MiSans Critical"; src: url("../fonts/misans-700-2262d2dd51b4-critical.woff2") format("woff2"); font-weight: 700; font-display: swap; }
 @font-face { font-family: "Geist"; src: url("../fonts/geist.woff2") format("woff2"); font-weight: 100 900; font-display: swap; }
 @font-face { font-family: "Geist Mono"; src: url("../fonts/geist-mono.woff2") format("woff2"); font-weight: 100 900; font-display: swap; }
 

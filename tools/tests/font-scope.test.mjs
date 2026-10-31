@@ -132,11 +132,12 @@ test('real MiSans source weights preserve shaping and kerning for every critical
   const { page } = await open();
   try {
     await page.evaluate(() => NP.preparePreviews());
-    const css = await buildCriticalCss();
-    const points = new Set([...css.matchAll(/misans-400-shell-critical\/\d+\.woff2[^}]+unicode-range:([^}]+)/g)].flatMap(match => match[1].split(',').flatMap(span => {
-      const [, first, last] = /U\+([\dA-F]+)(?:-([\dA-F]+))?/.exec(span);
-      return Array.from({ length: parseInt(last || first, 16) - parseInt(first, 16) + 1 }, (_, index) => String.fromCodePoint(parseInt(first, 16) + index));
-    })));
+    const shell = await page.locator('.hero,.nav,.menu,.route,.skip').allTextContents();
+    const github = await readFile(new URL('assets/js/github.js', root), 'utf8');
+    const cta = /var CTA = \{[\s\S]*?(?=\n  NP\.github =)/.exec(github)?.[0];
+    assert.ok(cta, 'dynamic first-screen labels must be included in the shaping checks');
+    const labels = [...cta.matchAll(/'([^'\n]*)'/g)].map(match => match[1]);
+    const points = new Set((shell.join('') + labels.join('')).match(/[\u2e80-\u9fff\uf900-\ufaff\ufe30-\ufe4f\uff00-\uffef]/gu));
     const result = await page.evaluate(async characters => {
       const canvas = document.createElement('canvas').getContext('2d');
       let comparisons = 0;

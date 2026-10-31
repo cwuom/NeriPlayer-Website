@@ -26,7 +26,10 @@ test('deferred Latin families keep their complete ASCII runs instead of a charac
     assert.match(face, /unicode-range: U\+0020-007E[,;]/);
     assert.doesNotMatch(face, /-critical\.woff2/);
   }
-  const sizes = await Promise.all(['fraunces-critical.woff2', 'caveat-critical.woff2'].map(name => stat(new URL('assets/fonts/' + name, root))));
+  const base = await read('assets/css/base.css');
+  const paths = ['fraunces', 'caveat'].map(name => new RegExp('url\\("\\.\\./fonts/(' + name + '-[a-f0-9]{12}-critical\\.woff2)"\\)').exec(base)?.[1]);
+  assert.ok(paths.every(Boolean), 'the actual registered aliases must use immutable font URLs');
+  const sizes = await Promise.all(paths.map(name => stat(new URL('assets/fonts/' + name, root))));
   assert.ok(sizes.reduce((bytes, entry) => bytes + entry.size, 0) < 65 * 1024, 'fixed-run subsets must remove more than half of the previous 148,768-byte Latin critical payload');
 });
 

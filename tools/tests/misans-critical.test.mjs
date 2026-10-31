@@ -5,15 +5,6 @@ import { buildCriticalCss, extractCriticalCss } from '../build-critical-css.mjs'
 
 const root = new URL('../../', import.meta.url);
 
-function points(range) {
-  return new Set(range.split(',').flatMap(part => {
-    const match = /^\s*U\+([\da-f]+)(?:-([\da-f]+))?\s*$/i.exec(part);
-    assert.ok(match, 'invalid unicode range: ' + part);
-    const first = parseInt(match[1], 16), last = parseInt(match[2] || match[1], 16);
-    return Array.from({ length: last - first + 1 }, (_, index) => first + index);
-  }));
-}
-
 test('critical MiSans faces preserve shard boundaries and contain only requested characters', () => {
   const fallbackCss = `
     @font-face { font-family: "MiSans"; src: url("../fonts/misans-400/15.woff2") format("woff2"); font-weight: 400; font-display: swap; unicode-range: U+4E00-4E03; }
@@ -32,26 +23,27 @@ test('unsupported MiSans fallback sources are rejected before emitting an unbuil
   assert.throws(() => extractCriticalCss([], { fallbackCss, characters: new Set([0x4e00]) }), /existing source shard/);
 });
 
-test('every emitted MiSans subset exists and reduces the matching source shard', async t => {
+test('an existing complete critical face bypasses legacy shard generation', () => {
+  const base = '@font-face { font-family: "MiSans Critical"; src: url("../fonts/misans-400-0123456789ab-critical.woff2"); font-weight: 400; font-display: swap; }';
+  const fallbackCss = '@font-face { font-family: "MiSans"; src: url("../fonts/misans-400-0123456789ab.woff2"); font-weight: 400; font-display: swap; }';
+  const css = extractCriticalCss([base], { fallbackCss, characters: new Set([0x4e00]) });
+  assert.equal([...css.matchAll(/font-family:"MiSans Critical"/g)].length, 1);
+  assert.ok(css.includes('misans-400-0123456789ab-critical.woff2'));
+  assert.doesNotMatch(css, /shell-critical/);
+});
+
+test('the single emitted MiSans critical face exists and reduces its complete source', async t => {
   const css = await buildCriticalCss();
   const original = await readFile(new URL('assets/css/desktop-fonts.css', root), 'utf8');
-  const faces = [...css.matchAll(/@font-face\{font-family:"MiSans Critical";src:url\("\.\.\/fonts\/misans-400-shell-critical\/(\d+)\.woff2"\)[^}]*unicode-range:([^}]+)\}/g)];
-  assert.ok(faces.length > 0, 'first-screen CJK must use actual generated subsets');
-  let before = 0, after = 0;
-  for (const [, shard, range] of faces) {
-    const source = original.split('\n').find(line => line.includes('misans-400/' + shard + '.woff2'));
-    assert.ok(source, 'critical face must retain an existing source shard');
-    const originalPoints = points(/unicode-range:\s*([^;]+)/.exec(source)[1]);
-    for (const point of points(range)) assert.ok(originalPoints.has(point), 'critical range must not invent a glyph');
-    const sourceFile = new URL('assets/fonts/misans-400/' + shard + '.woff2', root);
-    const subsetFile = new URL('assets/fonts/misans-400-shell-critical/' + shard + '.woff2', root);
-    const [sourceInfo, subsetInfo] = await Promise.all([stat(sourceFile), stat(subsetFile)]);
-    assert.ok(subsetInfo.size <= sourceInfo.size, 'critical subset must not grow the source shard');
-    before += sourceInfo.size;
-    after += subsetInfo.size;
-  }
+  const faces = [...css.matchAll(/@font-face\{font-family:"MiSans Critical";src:url\("\.\.\/fonts\/(misans-400-[a-f0-9]{12}-critical\.woff2)"\)[^}]*\}/g)];
+  assert.equal(faces.length, 1, 'all first-screen CJK must be covered by one generated font');
+  const source = original.split('\n').find(line => /font-weight: 400;/.test(line) && line.includes('font-family: "MiSans"'));
+  assert.ok(source, 'the complete real 400 source must remain registered');
+  const sourceName = /url\("\.\.\/fonts\/([^" ]+)"\)/.exec(source)[1];
+  const [sourceInfo, subsetInfo] = await Promise.all([stat(new URL('assets/fonts/' + sourceName, root)), stat(new URL('assets/fonts/' + faces[0][1], root))]);
+  const before = sourceInfo.size, after = subsetInfo.size;
   assert.ok(after < before * .3, 'first-screen CJK keeps the same glyphs with at least seventy percent less font data');
-  t.diagnostic(JSON.stringify({ shards: faces.length, sourceBytes: before, criticalBytes: after, savedBytes: before - after }));
+  t.diagnostic(JSON.stringify({ requests: faces.length, sourceBytes: before, criticalBytes: after, savedBytes: before - after }));
 });
 
 test('Chinese preloads match its immutable critical CJK faces while English skips unnecessary CJK preloads', async () => {
@@ -59,7 +51,7 @@ test('Chinese preloads match its immutable critical CJK faces while English skip
   for (const path of ['index.html', 'en/index.html']) {
     const html = await readFile(new URL(path, root), 'utf8');
     const preloads = [...html.matchAll(/<link\b[^>]*href="([^" ]+)"[^>]*\bdata-hero-cjk\b[^>]*>/g)];
-    assert.equal(preloads.length, path === 'index.html' ? 4 : 0);
+    assert.equal(preloads.length, path === 'index.html' ? 1 : 0);
     for (const [, href] of preloads) {
       const font = href.slice(href.indexOf('fonts/'));
       assert.ok(css.includes(font), path + ': ' + href + ' must match an emitted face');
