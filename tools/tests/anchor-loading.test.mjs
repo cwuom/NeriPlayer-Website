@@ -70,7 +70,18 @@ async function manualScroll(page, input) {
     window.anchorInputSeen = false;
     window.addEventListener(type, () => { anchorInputSeen = true; }, { once: true });
   }, input === 'touch' ? 'touchstart' : input === 'wheel' ? 'wheel' : 'keydown');
-  if (input === 'touch') await page.touchscreen.tap(12, 300);
+  if (input === 'touch') {
+    const point = await page.evaluate(() => {
+      // 页面仍在滚动，固定坐标可能落到链接上并发起一次新的导航
+      for (const [x, y] of [[4, 100], [4, 300], [4, innerHeight - 100], [innerWidth - 4, 100]]) {
+        const element = document.elementFromPoint(x, y);
+        if (element && !element.closest('a,button,input,select,textarea,[role="button"],[contenteditable],#menu')) return { x, y };
+      }
+      return null;
+    });
+    assert.ok(point, 'manual touch must reach inert content instead of activating another control');
+    await page.touchscreen.tap(point.x, point.y);
+  }
   else if (input === 'wheel') await page.mouse.wheel(0, -300);
   else await page.keyboard.press('PageDown');
   await page.waitForFunction(() => anchorInputSeen, null, { timeout: 3000 });

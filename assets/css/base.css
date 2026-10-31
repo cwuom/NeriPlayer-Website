@@ -7,6 +7,8 @@
 @font-face { font-family: "NP Serif Critical"; src: url("../fonts/np-serif-fd6eccc6f6de-critical.woff2") format("woff2"); font-weight: 200 900; font-style: normal; font-display: swap; }
 @font-face { font-family: "NP Hand Critical"; src: url("../fonts/np-hand-8a0093060611-critical.woff2") format("woff2"); font-weight: 400; font-display: swap; }
 @font-face { font-family: "Caveat Critical"; src: url("../fonts/caveat-8f7e8778d00e-critical.woff2") format("woff2"); font-weight: 400 700; font-display: swap; }
+@font-face { font-family: "Fraunces Critical ZH"; src: url("../fonts/fraunces-6dc3b85ae96f-critical.woff2") format("woff2"); font-weight: 100 900; font-style: normal; font-display: swap; }
+@font-face { font-family: "Fraunces Critical ZH"; src: url("../fonts/fraunces-italic-zh-e17442fd71ea-critical.woff2") format("woff2"); font-weight: 100 900; font-style: italic; font-display: swap; }
 @font-face { font-family: "MiSans Critical"; src: url("../fonts/misans-400-ba217028279c-critical.woff2") format("woff2"); font-weight: 400; font-display: swap; }
 @font-face { font-family: "MiSans Critical"; src: url("../fonts/misans-500-1e96e8e368e2-critical.woff2") format("woff2"); font-weight: 500; font-display: swap; }
 @font-face { font-family: "MiSans Critical"; src: url("../fonts/misans-600-bc0b5e1c2f5e-critical.woff2") format("woff2"); font-weight: 600; font-display: swap; }
@@ -93,6 +95,10 @@ body {
     linear-gradient(var(--grid) 1px, transparent 1px),
     linear-gradient(90deg, var(--grid) 1px, transparent 1px);
   background-size: 220px 220px, 24px 24px, 24px 24px;
+}
+
+body:lang(zh) {
+  --serif: "Fraunces Critical ZH", "NP Serif Critical", "Songti SC", "STSong", "Noto Serif SC", "Source Han Serif SC", serif;
 }
 
 .station[data-fonts-preparing], .station[data-fonts-ready], .footer[data-fonts-preparing], .footer[data-fonts-ready], .no-js body {

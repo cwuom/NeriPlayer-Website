@@ -594,10 +594,15 @@
     };
     var h1 = $('.hero h1');
     if (document.fonts && document.fonts.load && h1) {
+      var family = 'Fraunces Critical';
+      // 缓存的旧 HTML 没有中文别名，仍等待它实际使用的字体
+      if (!NP.en && document.fonts.forEach) document.fonts.forEach(function (face) {
+        if (face.family.replace(/["']/g, '') === 'Fraunces Critical ZH') family = 'Fraunces Critical ZH';
+      });
       var sample = (h1.textContent || 'NeriPlayer').replace(/\s+/g, '').slice(0, 24);
       Promise.all([
-        document.fonts.load('400 64px "Fraunces Critical"', sample),
-        document.fonts.load('italic 400 64px "Fraunces Critical"', sample),
+        document.fonts.load('400 64px "' + family + '"', sample),
+        document.fonts.load('italic 400 64px "' + family + '"', sample),
         document.fonts.load('400 64px "NP Serif Critical"', sample),
       ]).then(start, start);
       setTimeout(start, 1200);

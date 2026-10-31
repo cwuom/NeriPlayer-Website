@@ -11,28 +11,87 @@
   var REPO = 'cwuom/NeriPlayer';
   var DREPO = 'cwuom/NeriPlayer-Desktop';
 
-  function cached(key, ttlMin, url, map) {
-    var k = 'np-site:' + key;
+  var dataURL = document.currentScript ? document.currentScript.src.replace(/js\/github\.js(?:[?#].*)?$/, 'data/github.json') : (NP.en ? '../' : '') + 'assets/data/github.json';
+  var snapshotRequest;
+
+  function readCache(key) {
     try {
-      var raw = localStorage.getItem(k);
-      if (raw) {
-        var hit = JSON.parse(raw);
-        if (Date.now() - hit.t < ttlMin * 60000) return Promise.resolve(hit.v);
-      }
-    } catch (e) { /* 隐私模式下 localStorage 不可用 */ }
-    var ctrl = 'AbortController' in window ? new AbortController() : null;
-    var timer = ctrl ? setTimeout(function () { ctrl.abort(); }, 12000) : 0;
-    return fetch(url, { headers: { Accept: 'application/vnd.github+json' }, signal: ctrl ? ctrl.signal : undefined })
-      .then(function (r) {
-        clearTimeout(timer);
+      var raw = localStorage.getItem('np-site:' + key);
+      return raw ? JSON.parse(raw) : null;
+    } catch (e) { return null; }
+  }
+  function writeCache(key, value) {
+    try { localStorage.setItem('np-site:' + key, JSON.stringify({ t: Date.now(), v: value })); } catch (e) { /* 隐私模式或配额已满时仍可使用当前数据 */ }
+  }
+  function requestJSON(url, timeout) {
+    return new Promise(function (resolve, reject) {
+      var ctrl = 'AbortController' in window ? new AbortController() : null;
+      var timer = setTimeout(function () {
+        if (ctrl) ctrl.abort();
+        reject(new Error('request timed out'));
+      }, timeout);
+      fetch(url, { cache: 'no-cache', signal: ctrl ? ctrl.signal : undefined }).then(function (r) {
         if (!r.ok) throw new Error('HTTP ' + r.status);
         return r.json();
-      })
-      .then(function (v) {
-        if (map) v = map(v);
-        try { localStorage.setItem(k, JSON.stringify({ t: Date.now(), v: v })); } catch (e) { /* 配额已满时忽略 */ }
-        return v;
+      }).then(function (value) { clearTimeout(timer); resolve(value); }, function (error) { clearTimeout(timer); reject(error); });
+    });
+  }
+  function integer(value) { return typeof value === 'number' && isFinite(value) && value >= 0 && Math.floor(value) === value; }
+  function validStats(value) { return value && integer(value.count) && integer(value.total); }
+  function officialURL(value, repo, path) { return typeof value === 'string' && value.indexOf(GH + repo + path) === 0 && !/[\s"<>]/.test(value); }
+  function validRelease(value, repo) {
+    return value && typeof value.tag_name === 'string' && value.tag_name && typeof value.body === 'string' &&
+      !isNaN(Date.parse(value.published_at)) && officialURL(value.html_url, repo, '/releases/') &&
+      Array.isArray(value.assets) && value.assets.length && value.assets.every(function (asset) {
+        return asset && typeof asset.name === 'string' && integer(asset.size) && asset.size > 0 &&
+          officialURL(asset.browser_download_url, repo, '/releases/download/') &&
+          (asset.digest == null || asset.digest === '' || typeof asset.digest === 'string' && /^sha256:[a-f0-9]{64}$/i.test(asset.digest));
       });
+  }
+  function hasInstaller(value, classify) {
+    return value.assets.some(function (asset) { return !!classify(asset.name); });
+  }
+  function validSnapshot(value) {
+    return value && value.schema === 1 && !isNaN(Date.parse(value.fetched_at)) && value.repository &&
+      integer(value.repository.stargazers_count) && integer(value.repository.forks_count) &&
+      value.android && validRelease(value.android.latest, REPO) && validStats(value.android.stats) && value.android.stats.count > 0 && value.android.stats.limited === false &&
+      hasInstaller(value.android.latest, abiOf) &&
+      value.desktop && validRelease(value.desktop.latest, DREPO) && validStats(value.desktop.stats) && value.desktop.stats.count > 0 && value.desktop.stats.limited === false &&
+      hasInstaller(value.desktop.latest, pkgOf);
+  }
+  function snapshot() {
+    if (!snapshotRequest) snapshotRequest = requestJSON(dataURL, 4000).then(function (value) {
+      if (!validSnapshot(value)) throw new Error('invalid GitHub snapshot');
+      writeCache('github-snapshot', value);
+      return value;
+    }).catch(function (error) {
+      var hit = readCache('github-snapshot');
+      if (hit && validSnapshot(hit.v)) return hit.v;
+      throw error;
+    });
+    return snapshotRequest;
+  }
+  function cachedStats(o) {
+    var hit = readCache(o.cache + 's');
+    return hit && validStats(hit.v) ? hit : null;
+  }
+  function requestStats(o) {
+    var hit = cachedStats(o);
+    if (hit && Date.now() - hit.t < 360 * 60000) return Promise.resolve(hit.v);
+    return requestJSON(API + o.repo + '/releases?per_page=100', 3000).then(function (list) {
+      if (!Array.isArray(list)) throw new Error('invalid release history');
+      var total = 0;
+      list.forEach(function (rel) {
+        if (!Array.isArray(rel.assets)) throw new Error('invalid release history');
+        rel.assets.forEach(function (asset) {
+          if (typeof asset.name !== 'string' || !integer(asset.download_count)) throw new Error('invalid download count');
+          if (!/\.(txt|sh|xz)$/i.test(asset.name)) total += asset.download_count;
+        });
+      });
+      var stats = { count: list.length, total: total, limited: list.length >= 100 };
+      writeCache(o.cache + 's', stats);
+      return stats;
+    }).catch(function (error) { if (hit) return hit.v; throw error; });
   }
 
   function fmtCount(n) {
@@ -113,7 +172,7 @@
   function failList(list, releases) {
     if (!list) return;
     fadeList(list, function () {
-      list.innerHTML = '<li class="changes__empty">' + L('暂时连不上 GitHub API，', 'GitHub API is unreachable right now. ') + '<a href="' + releases + '" target="_blank" rel="noopener">' + L('直接前往 Releases ↗', 'Go to Releases ↗') + '</a></li>';
+      list.innerHTML = '<li class="changes__empty">' + L('暂时无法读取版本信息，', 'Release information is unavailable right now. ') + '<a href="' + releases + '" target="_blank" rel="noopener">' + L('直接前往 Releases ↗', 'Go to Releases ↗') + '</a></li>';
       list.classList.remove('is-swap');
     });
   }
@@ -157,11 +216,15 @@
   Ticket.prototype.load = function () {
     var self = this;
     var o = this.o;
-    cached(o.cache, 30, API + o.repo + '/releases/latest').then(function (r) {
+    snapshot().then(function (data) { return data[o.prefix ? 'desktop' : 'android'].latest; }).catch(function (error) {
+      var hit = readCache(o.cache);
+      if (hit && validRelease(hit.v, o.repo)) return hit.v;
+      throw error;
+    }).then(function (r) {
       var assets = {};
       (r.assets || []).forEach(function (a) {
         var k = o.classify(a.name);
-        if (k && !assets[k]) assets[k] = { url: a.browser_download_url, size: a.size, sha: (a.digest || '').replace(/^sha256:/, '') };
+        if (k && !assets[k]) assets[k] = { url: a.browser_download_url, size: a.size, sha: (a.digest || '').replace(/^sha256:/i, '') };
       });
       self.release = { tag: r.tag_name, url: r.html_url, date: r.published_at, assets: assets };
       setAll(o.prefix + 'tag', r.tag_name || L('最新版本', 'Latest'));
@@ -181,15 +244,15 @@
     var self = this;
     var o = this.o;
     this.statsFailed = false;
-    this.statsRequest = cached(o.cache + 's', 360, API + o.repo + '/releases?per_page=100', function (list) {
-      if (!Array.isArray(list)) return null;
-      var total = 0;
-      list.forEach(function (rel) { (rel.assets || []).forEach(function (a) { if (!/\.(txt|sh|xz)$/i.test(a.name)) total += a.download_count || 0; }); });
-      return { count: list.length, total: total };
+    this.statsRequest = snapshot().then(function (data) { return data[o.prefix ? 'desktop' : 'android'].stats; }).catch(function (error) {
+      var hit = cachedStats(o);
+      if (user) return requestStats(o);
+      if (hit) return hit.v;
+      throw error;
     }).then(function (s) {
       if (self.stopStatsWatch) self.stopStatsWatch();
       if (!s) { self.statsFailed = true; self.statsRequest = null; return null; }
-      var more = s.count >= 100 ? '+' : '';
+      var more = s.limited || (s.limited === undefined && s.count >= 100) ? '+' : '';
       setAll(o.prefix + 'count', s.count + more);
       setAll(o.prefix + 'downloads', fmtCount(s.total) + more);
       return s;
@@ -456,7 +519,11 @@
         }).catch(function () {});
       }
 
-      cached('repo', 360, API + REPO).then(function (repo) {
+      snapshot().then(function (data) { return data.repository; }).catch(function (error) {
+        var hit = readCache('repo');
+        if (hit && hit.v && integer(hit.v.stargazers_count) && integer(hit.v.forks_count)) return hit.v;
+        throw error;
+      }).then(function (repo) {
         if (repo && typeof repo.stargazers_count === 'number') setAll('stars', fmtCount(repo.stargazers_count));
         if (repo && typeof repo.forks_count === 'number') setAll('forks', fmtCount(repo.forks_count));
       }).catch(function () {});

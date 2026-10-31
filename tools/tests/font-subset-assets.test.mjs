@@ -20,7 +20,7 @@ test('first-screen MiSans 400 has one immutable complete face', async () => {
 });
 
 test('changed published and critical fonts use content-hashed immutable paths', async () => {
-  const base = faces(await read('assets/css/base.css')).filter(face => face.family?.endsWith(' Critical'));
+  const base = faces(await read('assets/css/base.css')).filter(face => face.family?.endsWith(' Critical') || face.family === 'Fraunces Critical ZH');
   const content = faces(await read('assets/css/content-fonts.css')).filter(face => ['NP Serif', 'NP Hand'].includes(face.family));
   const desktop = faces(await read('assets/css/desktop-fonts.css')).filter(face => face.family === 'MiSans');
   assert.equal(desktop.length, 5, 'one complete actual-role subset remains available for every existing MiSans weight');

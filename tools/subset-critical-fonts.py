@@ -30,8 +30,10 @@ FACES = {
     "np-serif": ("NP Serif", "200 900", "normal"),
     "np-hand": ("NP Hand", "400", None),
     "caveat": ("Caveat", "400 700", None),
+    "fraunces-zh": ("Fraunces", "100 900", "normal"),
+    "fraunces-italic-zh": ("Fraunces", "100 900", "italic"),
 }
-CRITICAL_ALIASES = {"fraunces": "Fraunces Critical", "fraunces-italic": "Fraunces Critical", "caveat": "Caveat Critical", "np-serif": "NP Serif Critical", "np-hand": "NP Hand Critical"}
+CRITICAL_ALIASES = {"fraunces": "Fraunces Critical", "fraunces-italic": "Fraunces Critical", "caveat": "Caveat Critical", "np-serif": "NP Serif Critical", "np-hand": "NP Hand Critical", "fraunces-zh": "Fraunces Critical ZH", "fraunces-italic-zh": "Fraunces Critical ZH"}
 GEIST_FACES = [
     '@font-face { font-family: "Geist"; src: url("../fonts/geist.woff2") format("woff2"); font-weight: 100 900; font-display: swap; }',
     '@font-face { font-family: "Geist Mono"; src: url("../fonts/geist-mono.woff2") format("woff2"); font-weight: 100 900; font-display: swap; }',
@@ -93,6 +95,13 @@ def critical_role_points():
 def critical_codepoints():
     characters, italic, hand = critical_role_points()
     return {point for point in characters if is_cjk(point)}, italic & ASCII, {point for point in hand if is_cjk(point)}
+
+
+def chinese_italic_points():
+    parser = CriticalText()
+    parser.feed((ROOT / "index.html").read_text(encoding="utf-8"))
+    # 保留真实空格字形和原字体 metrics，空 cmap 会被浏览器拒绝
+    return {0x20} | {ord(character) for character in "".join(parser.italic) if ord(character) in ASCII}
 
 
 def is_cjk(point):
@@ -280,6 +289,12 @@ def run(check, fallback_only=False):
             source = registered_faces("content-fonts.css", family, weight, style)[0][1]
             target = build_immutable(source, name, points, check, critical=True)
             jobs.append((name, target, points))
+        # normal 继续复用已发布的 39 字形文件，不改变屏外章节的预布局
+        jobs.append(("fraunces-zh", jobs[0][1], latin))
+        source = registered_faces("content-fonts.css", "Fraunces", "100 900", "italic")[0][1]
+        points = chinese_italic_points()
+        target = build_immutable(source, "fraunces-italic-zh", points, check, critical=True)
+        jobs.append(("fraunces-italic-zh", target, points))
     else:
         for name in FACES:
             family = CRITICAL_ALIASES[name]

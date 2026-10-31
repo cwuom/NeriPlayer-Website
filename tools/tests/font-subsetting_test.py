@@ -14,6 +14,16 @@ spec.loader.exec_module(fonts)
 
 
 class FontSubsettingTests(unittest.TestCase):
+    def test_chinese_italic_points_keep_real_space_and_future_latin_letters(self):
+        original_root = fonts.ROOT
+        with tempfile.TemporaryDirectory() as directory:
+            try:
+                fonts.ROOT = Path(directory)
+                (fonts.ROOT / "index.html").write_text('<section class="hero"><h1>本地优先，<em>AB桌面</em></h1></section>', encoding="utf-8")
+                self.assertEqual(fonts.chinese_italic_points(), {0x20, ord("A"), ord("B")})
+            finally:
+                fonts.ROOT = original_root
+
     def test_missing_glyphs_fail_instead_of_disappearing(self):
         with self.assertRaisesRegex(ValueError, "missing required characters: U\\+10FFFF"):
             fonts.subset_bytes(fonts.FONTS / "fraunces.woff2", {ord("A"), 0x10FFFF})

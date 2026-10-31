@@ -35,7 +35,7 @@ test('deferred Latin families keep their complete ASCII runs instead of a charac
 
 test('the unchanged title intro waits for the alias faces actually drawing the title', async () => {
   const source = await read('assets/js/motion.js');
-  assert.ok(source.includes('document.fonts.load(\'400 64px "Fraunces Critical"\', sample)'));
-  assert.ok(source.includes('document.fonts.load(\'italic 400 64px "Fraunces Critical"\', sample)'));
+  assert.ok(source.includes('document.fonts.load(\'400 64px "\' + family + \'"\', sample)'));
+  assert.ok(source.includes('document.fonts.load(\'italic 400 64px "\' + family + \'"\', sample)'));
   assert.ok(source.includes('document.fonts.load(\'400 64px "NP Serif Critical"\', sample)'));
 });

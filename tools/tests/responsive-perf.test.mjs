@@ -1,5 +1,6 @@
 import assert from 'node:assert/strict';
 import { existsSync } from 'node:fs';
+import { readFile } from 'node:fs/promises';
 import { createRequire } from 'node:module';
 import { join } from 'node:path';
 import test, { after, before } from 'node:test';
@@ -14,6 +15,13 @@ const executablePath = [
   '/usr/bin/google-chrome',
   '/usr/bin/chromium',
 ].find(path => path && existsSync(path));
+const snapshot = JSON.parse(await readFile(new URL('../../assets/data/github.json', import.meta.url), 'utf8'));
+snapshot.repository = { stargazers_count: 3700, forks_count: 131 };
+for (const key of ['android', 'desktop']) {
+  snapshot[key].latest.tag_name = 'v0.6.7.r1477.964c722b9';
+  for (const asset of snapshot[key].latest.assets) asset.size = 123456789;
+  snapshot[key].stats = { count: 1, total: 493824, limited: false };
+}
 let browser;
 
 before(async () => { browser = await chromium.launch({ headless: true, ...(executablePath ? { executablePath } : {}) }); });
@@ -21,28 +29,20 @@ after(async () => { await browser?.close(); });
 
 async function open(path = '/', options = {}) {
   const page = await browser.newPage({ viewport: { width: 1440, height: 900 }, reducedMotion: 'reduce', ...options });
-  const apiRequests = [];
+  const apiRequests = [], snapshotRequests = [];
   await page.route('**/__live', route => route.abort());
   await page.route('https://api.github.com/**', route => {
     apiRequests.push(route.request().url());
-    const url = route.request().url();
-    if (url.includes('/releases')) {
-      const release = {
-        tag_name: 'v0.6.7.r1477.964c722b9', published_at: '2026-10-29T00:00:00Z',
-        html_url: 'https://github.com/cwuom/NeriPlayer/releases', body: '',
-        assets: ['neriplayer-arm64-v8a.apk', 'neriplayer-x64-setup.exe', 'neriplayer-arm64.dmg', 'neriplayer.deb'].map(name => ({
-          name, browser_download_url: 'https://example.test/' + name, size: 123456789,
-          digest: 'sha256:' + 'a'.repeat(64), download_count: 123456,
-        })),
-      };
-      return route.fulfill({ json: url.includes('/latest') ? release : [release] });
-    }
-    return route.fulfill({ json: { stargazers_count: 3700, forks_count: 131 } });
+    return route.abort();
+  });
+  await page.route('**/assets/data/github.json', route => {
+    snapshotRequests.push(route.request().url());
+    return route.fulfill({ json: snapshot });
   });
   await page.goto(base + path, { waitUntil: 'domcontentloaded' });
   await page.waitForFunction(() => { window.NP?.preparePreviews?.(); return window.NP?.booted; });
   await page.evaluate(() => document.fonts.ready);
-  return { page, apiRequests };
+  return { page, apiRequests, snapshotRequests };
 }
 
 async function overflowing(page, selector) {
@@ -124,11 +124,12 @@ test('desktop simulation waits until nearby and creates playback graphics only o
   } finally { await page.close(); }
 });
 
-test('startup does not fetch unused desktop repository metadata', async () => {
-  const { page, apiRequests } = await open();
+test('startup keeps repository metadata on the same origin without a visitor GitHub API request', async () => {
+  const { page, apiRequests, snapshotRequests } = await open();
   try {
-    assert.ok(apiRequests.some(url => url.endsWith('/cwuom/NeriPlayer')));
-    assert.equal(apiRequests.some(url => url.endsWith('/cwuom/NeriPlayer-Desktop')), false);
+    await page.waitForFunction(() => NP.github.android?.release && NP.github.desktop?.release);
+    assert.deepEqual(apiRequests, []);
+    assert.equal(snapshotRequests.length, 1);
   } finally { await page.close(); }
 });
 

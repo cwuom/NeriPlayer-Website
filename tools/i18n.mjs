@@ -152,6 +152,10 @@ if (cmd === 'extract') {
     const doc = document.documentElement;
     doc.lang = 'en';
     doc.querySelectorAll('link[data-hero-cjk]').forEach(link => link.remove());
+    doc.querySelectorAll('link[data-hero-en-font]').forEach(link => {
+      link.setAttribute('href', link.getAttribute('data-hero-en-font'));
+      link.removeAttribute('data-hero-en-font');
+    });
     /* 相对路径整体上移一级；语言链接互换 */
     const fix = (v) => {
       if (!v || /^(#|[a-z]+:|\/|data:)/i.test(v)) return v;
@@ -165,6 +169,9 @@ if (cmd === 'extract') {
         if (a === 'href' && el.closest('svg') ) continue;
         el.setAttribute(a, fix(el.getAttribute(a)));
       }
+    });
+    document.querySelectorAll('[srcset]').forEach((el) => {
+      el.setAttribute('srcset', el.getAttribute('srcset').replace(/(^|,\s*)(assets\/[^\s,]+)/g, (_match, separator, path) => separator + fix(path)));
     });
     const critical = document.getElementById('critical-css');
     if (critical) critical.textContent = critical.textContent.replaceAll('assets/fonts/', '../assets/fonts/');
