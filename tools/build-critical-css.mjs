@@ -67,13 +67,15 @@ function rules(css) {
   return result;
 }
 
-function compact(css, declarations = false) {
-  let result = '', quote = '', space = false;
+function compact(css, declarations = false, preserveComments = false, trimSemicolon = declarations) {
+  let result = '', quote = '', space = false, lastPunctuation = false;
   const punctuation = declarations ? '{}:;,' : '{},';
   function append(char) {
-    if (space && result && !punctuation.includes(result.at(-1)) && !punctuation.includes(char)) result += ' ';
+    const isPunctuation = char.length === 1 && punctuation.includes(char);
+    if (space && result && !lastPunctuation && !isPunctuation) result += ' ';
     space = false;
     result += char;
+    lastPunctuation = isPunctuation;
   }
   for (let i = 0; i < css.length; i++) {
     const char = css[i];
@@ -81,13 +83,48 @@ function compact(css, declarations = false) {
     if (quote) { result += char; if (char === quote) quote = ''; continue; }
     if (char === '"' || char === "'") { quote = char; append(char); continue; }
     if (char === '/' && css[i + 1] === '*') {
-      i = css.indexOf('*/', i + 2) + 1;
-      space = true;
+      const end = css.indexOf('*/', i + 2);
+      if (end === -1) throw new Error('Unclosed CSS comment');
+      if (preserveComments) result += css.slice(i, end + 2);
+      else space = true;
+      i = end + 1;
     } else if (/\s/.test(char)) {
       space = true;
     } else append(char);
   }
-  return result.trim().replace(/;$/, '');
+  const trimmed = result.trim();
+  return trimSemicolon ? trimmed.replace(/;$/, '') : trimmed;
+}
+
+// 完整样式只压缩安全的空白，不改写数值、变量、选择器或动画规则
+export function minifyCss(css) {
+  function declarations(body) {
+    const result = [];
+    let start = 0;
+    while (start < body.length) {
+      const end = boundary(body, start, ';');
+      const declaration = body.slice(start, end).trimStart().replace(/^(?:\/\*[\s\S]*?\*\/\s*)+/, '');
+      const colon = boundary(declaration, 0, ':');
+      const property = declaration.slice(0, colon).trim();
+      if (property.startsWith('--') && colon < declaration.length) {
+        // 自定义属性是供 var() 替换的 token 流，保留其值中的原始空白
+        result.push(property + ':' + declaration.slice(colon + 1));
+      } else if (/^-?[a-zA-Z_][\w-]*$/.test(property) && colon < declaration.length) {
+        result.push(property + ':' + compact(declaration.slice(colon + 1), true, true, false));
+      } else if (declaration.trim()) {
+        // 未识别的嵌套语法原样保留，不能按声明删除选择器中的空白
+        result.push(declaration.trim());
+      }
+      start = end + 1;
+    }
+    return result.join(';');
+  }
+  return rules(css).map(rule => {
+    const header = compact(rule.header, false, true);
+    if (rule.body === null) return header + ';';
+    const nested = rule.children || /^@(?:-webkit-)?keyframes\b/i.test(rule.header);
+    return header + '{' + (nested ? minifyCss(rule.body) : declarations(rule.body)) + '}';
+  }).join('');
 }
 
 function splitSelectors(header) {

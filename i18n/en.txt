@@ -1094,10 +1094,6 @@ In international mode, the home page puts YouTube Music playlists and song shelv
 # <b>05</b>可在「设置 &gt; 通用」完全禁用，关闭后不显示入口、不做后台预热
 <b>05</b>Can be switched off entirely in “Settings &gt; General” — no entry points and no background warm-up when off
 
-@0e3aa0e55e  html  p.small
-# 这里的能力只指账号会话、播放兼容和错误恢复，不代表绕过平台限制或重新分发媒体。
-These capabilities only cover account sessions, playback compatibility and error recovery. They do not mean bypassing platform restrictions or redistributing media.
-
 @9942224eee  html  p.tag
 # {{0}}导入 · 扫描 · 归类
 {{0}}Import · Scan · Organize
@@ -3132,9 +3128,9 @@ GPL-3.0 Licensed · Lovingly powered by you.
 # 常听的歌，总在不同地方。NeriPlayer 把网易云音乐、哔哩哔哩、YouTube Music 和本地歌曲放进同一个播放器，歌单与记录优先留在本地。在手机或电脑上，都能用熟悉的方式听歌。
 The songs you love live in different places. NeriPlayer brings NetEase Cloud Music, Bilibili, YouTube Music and local songs into one player, keeping playlists and listening history on your device by default. A familiar way to listen, on your phone or computer.
 
-@72e63fd5c4  html  p.lead
-# 先选手机还是电脑，再挑一个匹配设备的安装包，就能开始听。版本号、文件大小和 SHA-256 校验值直接取自 GitHub Releases，免费，也没有广告。
-Choose your phone or computer, then pick the right download for your device and start listening. Version numbers, file sizes and SHA-256 checksums come straight from GitHub Releases. Free to use, with no ads.
+@fe04e20277  html  p.lead
+# 先选手机还是电脑，再挑一个匹配设备的安装包，就能开始听。
+Choose your phone or computer, then pick the right download for your device and start listening.
 
 @f945a36d1b  html  p.lead
 # 白天或入夜，都有合适的样子。Clean 留白简洁，Material You 色彩丰富，两套界面都备好了浅色和深色模式。切换看看，选自己喜欢的那一种。
@@ -3251,3 +3247,51 @@ Yes. NeriPlayer Desktop is available for Windows, macOS and Linux from its GitHu
 @f788e06fc6  html  p
 # 可以在下载设置里开启“元信息后处理”和“标准化歌词嵌入”，再重新下载试试。后者会把写入音频的逐字歌词转成更通用的逐行 LRC，方便其他播放器识别。
 Try enabling metadata post-processing and “Standardized lyric embedding” in download settings, then download the song again. The latter converts embedded word-by-word lyrics to more widely supported line-by-line LRC.
+
+@8d61a4f985  html  summary
+# <i class="hand">Q.</i>为什么点了循环按钮，还是随机播放？
+<i class="hand">Q.</i>Why is playback still shuffled after I change the repeat mode?
+
+@494f03d4a5  html  p
+# 随机和循环是两个独立开关。要顺序播放，先关闭随机；循环按钮只决定列表播完是否重来，以及是否单曲循环。图标里带“1”表示单曲循环。
+Shuffle and repeat are separate controls. Turn shuffle off to play in order. Repeat controls whether the queue starts over or the current track repeats; the icon with “1” means repeat one.
+
+@682348dd01  html  summary
+# <i class="hand">Q.</i>歌词翻译和音译在哪里切换？
+<i class="hand">Q.</i>Where can I switch between lyric translations and phonetics?
+
+@0d197ab43a  html  p
+# 打开“正在播放→更多→调整歌词行为”，可以控制第二行歌词。歌曲同时带有翻译和音译时，先打开“显示歌词翻译”，再用“音译显示”切换。
+Open Now Playing → More → Adjust Lyrics Behavior to control the second lyric line. When a song has both translations and phonetics, turn on “Show lyric translation”, then use “Show phonetics” to switch.
+
+@c37e73be0e  html  summary
+# <i class="hand">Q.</i>播放页按钮太小，可以单独放大吗？
+<i class="hand">Q.</i>Can I make the playback buttons bigger?
+
+@da78f065bd  html  p
+# 可以。在“设置→播放页→正在播放控件大小”里选择合适尺寸，顶部按钮、播放控制和底部工具栏会一起调整。歌词页也有独立的控件大小选项。
+Yes. Open Settings → Now Playing → Now Playing control size to resize the top actions, main controls and bottom toolbar together. The lyrics page has its own control size setting.
+
+@bc0a2a537d  html  summary
+# <i class="hand">Q.</i>开启高级歌词后，为什么有些歌仍不能逐字显示？
+<i class="hand">Q.</i>Why don’t some songs show word-by-word lyrics with advanced lyrics enabled?
+
+@d316382662  html  p
+# 逐字显示需要歌词本身带有每个字的时间信息。可以在“获取歌曲信息”中换一个歌词源或歌曲版本，匹配带逐字数据的歌词。
+Word-by-word highlighting needs timing data for each word. Try another lyric source or song version under “Get Song Info” to find lyrics with word timing.
+
+@5840cb4f72  html  summary
+# <i class="hand">Q.</i>哔哩哔哩可以扫码登录吗？
+<i class="hand">Q.</i>Can I sign in to Bilibili with a QR code?
+
+@8f6da644b0  html  p
+# 可以。在“设置→第三方平台登录→哔哩哔哩”选择“扫码登录”，用哔哩哔哩客户端扫码确认后返回 NeriPlayer。二维码页也可以切换到网页登录。
+Yes. In Settings → Third-party Platform Login → Bilibili, choose QR sign-in. Scan and confirm in the Bilibili app, then return to NeriPlayer. The QR page also offers web sign-in.
+
+@970120c5a6  html  summary
+# <i class="hand">Q.</i>USB 独占播放时，怎样调节音量？
+<i class="hand">Q.</i>How do I adjust volume during USB exclusive playback?
+
+@b6d32ef154  html  p
+# 关闭“比特完美输出”时，音量键、锁屏和系统音量面板都能调节音量。开启后，音量键会调 DAC 的硬件音量，需要 DAC 支持；不支持时可关闭比特完美再调节。
+With “Bit-perfect output” off, use the volume keys, lock screen or system volume panel. With it on, the keys adjust the DAC’s hardware volume when supported. Otherwise, switch bit-perfect output off to adjust volume on your phone.

@@ -2,6 +2,7 @@
 import { readFile, writeFile } from 'node:fs/promises';
 import { resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { minifyCss } from './build-critical-css.mjs';
 
 const root = new URL('../', import.meta.url);
 const target = new URL('assets/css/site.css', root);
@@ -18,7 +19,7 @@ export async function buildStyleBundle() {
   buffers.forEach((buffer, index) => {
     // 这些规则依赖文件开头的位置，遇到时应先审查再合并
     if (/^\s*@(import|charset)\b/im.test(buffer.toString('utf8'))) throw new Error('Cannot concatenate @import or @charset in ' + sourceFiles[index]);
-    chunks.push(Buffer.from('\n/* Source: assets/css/' + sourceFiles[index] + ' */\n'), buffer);
+    chunks.push(Buffer.from('\n/* Source: assets/css/' + sourceFiles[index] + ' */\n'), Buffer.from(minifyCss(buffer.toString('utf8'))));
     if (index < buffers.length - 1) chunks.push(Buffer.from('\n'));
   });
   return Buffer.concat(chunks);
