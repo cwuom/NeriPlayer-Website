@@ -151,6 +151,7 @@
   var pointer = { x: 0, y: 0, tx: 0, ty: 0 };
 
   function measure() {
+    parallax.forEach(function (p) { p.el.style.translate = ''; });
     vh = window.innerHeight;
     var sy = window.scrollY;
     if (hero) {
@@ -159,7 +160,6 @@
       hero.h = r.height;
     }
     parallax.forEach(function (p) {
-      p.el.style.translate = '';
       var r = p.el.getBoundingClientRect();
       p.top = r.top + sy;
       p.h = r.height;
@@ -472,7 +472,10 @@
         ind.style.translate = left + 'px ' + top + 'px';
         if (jump) { void ind.offsetWidth; ind.classList.remove('is-jump'); }
       }
-      new MutationObserver(function () { place(false); }).observe(seg, { subtree: true, attributes: true, attributeFilter: ['class'] });
+      new MutationObserver(function (records) {
+        // 跳转标记不改变按钮几何，避免滑块响应自己的 class 写入
+        if (records.some(function (record) { return record.target !== ind; })) place(false);
+      }).observe(seg, { subtree: true, attributes: true, attributeFilter: ['class'] });
       place(true);
       NP.onResize(function () { place(true); });
       if (document.fonts && document.fonts.ready) document.fonts.ready.then(function () { place(true); });

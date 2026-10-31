@@ -120,7 +120,7 @@
       this.cat = $('#routeCat');
       this.items = $$('.route__stops li');
       this.links = $$('.nav__links a');
-      this.inkLen = this.ink && this.ink.getTotalLength ? this.ink.getTotalLength() : 0;
+      this.inkLen = 0;
       document.addEventListener('click', function (e) {
         var a = e.target.closest && e.target.closest('a[href^="#"]');
         if (!a || e.defaultPrevented || e.button !== 0 || e.metaKey || e.ctrlKey || e.shiftKey) return;
@@ -146,6 +146,7 @@
         return { i: +el.getAttribute('data-station'), y: NP.absTop(el), id: el.id };
       });
       this.railH = this.route ? this.route.clientHeight : 0;
+      if (this.railH && !this.inkLen && this.ink && this.ink.getTotalLength) this.inkLen = this.ink.getTotalLength();
       this.routePos = null;
       this.idx = -1;
     },

@@ -125,6 +125,7 @@
     var nodes = $$('.chain__node', chain);
     var sw = $('#bitPerfect');
     var out = $('#gainOut');
+    var near = !('IntersectionObserver' in window);
     function center(n) {
       var r = $('.chain__box', n).getBoundingClientRect();
       var c = chain.getBoundingClientRect();
@@ -137,6 +138,7 @@
       return ' C' + a.x.toFixed(1) + ' ' + my.toFixed(1) + ' ' + b.x.toFixed(1) + ' ' + my.toFixed(1) + ' ' + b.x.toFixed(1) + ' ' + b.y.toFixed(1);
     }
     function draw() {
+      if (!near) return;
       var pts = nodes.map(center);
       var d = 'M' + pts[0].x.toFixed(1) + ' ' + pts[0].y.toFixed(1);
       for (var i = 1; i < pts.length; i++) d += seg(pts[i - 1], pts[i]);
@@ -177,6 +179,7 @@
       k++;
       timer = setTimeout(pulse, k % nodes.length === 0 ? 1100 : 520);
     }
+    NP.whenVisible(chain, function () { near = true; draw(); }, function () { near = false; }, '600px 0px');
     NP.whenVisible(chain, function () { chain.classList.remove('is-paused'); draw(); clearTimeout(timer); pulse(); }, function () { chain.classList.add('is-paused'); clearTimeout(timer); });
   }
 

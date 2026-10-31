@@ -283,8 +283,8 @@
 
   var lastY = scroll.y;
   window.addEventListener('pageshow', function (e) {
-    scroll.y = window.scrollY;
     if (!e.persisted) return;
+    scroll.y = window.scrollY;
     stopTween();
     ss.active = false;
     ss.cur = ss.target = lastY = scroll.y;

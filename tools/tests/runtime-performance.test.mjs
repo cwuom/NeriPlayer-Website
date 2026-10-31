@@ -84,6 +84,20 @@ test('smooth and instant programmatic scrolling update the cache in the same fra
   assert.equal(fixture.NP.scroll.y, 700);
 });
 
+test('first pageshow leaves geometry reads to scroll initialization and native scrolling', () => {
+  const fixture = scrollFixture(900);
+  fixture.resetReads();
+  fixture.dispatch('pageshow', { persisted: false });
+  assert.deepEqual(fixture.reads, { position: 0, height: 0 }, 'the first pageshow must not force layout');
+  fixture.NP.smoothScroll.init();
+  assert.equal(fixture.NP.scroll.y, 900, 'initialization still restores the actual position');
+  fixture.resetReads();
+  fixture.dispatch('pageshow', { persisted: false });
+  assert.deepEqual(fixture.reads, { position: 0, height: 0 });
+  fixture.native(450);
+  assert.equal(fixture.NP.scroll.y, 450, 'native scrolling remains the cache update path');
+});
+
 test('initial scroll restoration and pageshow rebuild the cache without resuming an old tween', () => {
   const fixture = scrollFixture();
   fixture.set(900);
@@ -92,7 +106,9 @@ test('initial scroll restoration and pageshow rebuild the cache without resuming
   fixture.NP.scrollTo(2000);
   fixture.NP.smoothScroll.update(.1);
   fixture.set(450);
+  fixture.resetReads();
   fixture.dispatch('pageshow', { persisted: true });
+  assert.deepEqual(fixture.reads, { position: 1, height: 0 }, 'BFCache restoration still reads the restored position');
   assert.equal(fixture.NP.scroll.y, 450);
   assert.equal(fixture.NP.scroll.vy, 0);
   fixture.resetReads();
