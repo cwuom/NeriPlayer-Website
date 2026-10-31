@@ -20,7 +20,7 @@
     { files: ['content-fonts', 'desktop-fonts'], selector: '.station,.footer', margin: '200px 0px' },
     { files: ['phone-fonts'], selector: '.device:not(.is-shot)', margin: '1200px 0px' },
   ];
-  var assetBase = document.currentScript.src.replace(/[?#].*$/, '').replace(/js\/main\.js$/, 'css/');
+  var assetBase = document.currentScript.src.replace(/[?#].*$/, '').replace(/js\/main(?:\.min)?\.js$/, 'css/');
   var fontVersion = document.currentScript.dataset && document.currentScript.dataset.fontVersion;
   function loadFonts(group) {
     if (group.pending) return group.pending;

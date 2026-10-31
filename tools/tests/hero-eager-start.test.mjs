@@ -22,8 +22,8 @@ async function heldPage(holdFonts = false) {
   page.on('pageerror', error => errors.push(error.message));
   await page.route('**/__live', route => route.abort());
   await page.route('https://api.github.com/**', route => route.fulfill({ json: {} }));
-  await page.route(/\/assets\/js\/(github|demos)\.js(?:\?.*)?$/, route => {
-    const name = /\/(github|demos)\.js/.exec(route.request().url())[1];
+  await page.route(/\/assets\/js\/(github|demos)(?:\.min)?\.js(?:\?.*)?$/, route => {
+    const name = /\/(github|demos)(?:\.min)?\.js/.exec(route.request().url())[1];
     arrivals[name].release();
     const task = scripts.promise.then(() => route.continue());
     pending.push(task);

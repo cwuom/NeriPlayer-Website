@@ -29,7 +29,7 @@ function snapshot() {
   };
 }
 
-function fixture({ io = true, cache = new Map(), historyResponse = async () => history(), snapshotResponse = async () => snapshot(), en = false } = {}) {
+function fixture({ io = true, cache = new Map(), historyResponse = async () => history(), snapshotResponse = async () => snapshot(), en = false, script = source, scriptURL = 'https://site.test/assets/js/github.js?v=test' } = {}) {
   const requests = [], watchers = [], listeners = new Map(), fields = new Map();
   const on = (type, callback) => listeners.set(type, [...listeners.get(type) || [], callback]);
   const off = (type, callback) => listeners.set(type, (listeners.get(type) || []).filter(fn => fn !== callback));
@@ -72,7 +72,7 @@ function fixture({ io = true, cache = new Map(), historyResponse = async () => h
     const value = url.endsWith('/releases/latest') ? latest(repo) : url.includes('?per_page=100') ? await historyResponse(repo) : { stargazers_count: 4200, forks_count: 222 };
     return { ok: true, json: async () => value };
   };
-  vm.runInNewContext(source, { window, IntersectionObserver: io ? IntersectionObserver : undefined, document: { currentScript: { src: 'https://site.test/assets/js/github.js?v=test' } }, navigator: { userAgent: 'Android', platform: 'Linux armv8' }, localStorage, fetch, setTimeout, clearTimeout });
+  vm.runInNewContext(script, { window, IntersectionObserver: io ? IntersectionObserver : undefined, document: { currentScript: { src: scriptURL } }, navigator: { userAgent: 'Android', platform: 'Linux armv8' }, localStorage, fetch, setTimeout, clearTimeout });
   NP.github.init();
   return {
     NP, requests, cache, fields, panes, stubs, emit,
@@ -81,10 +81,29 @@ function fixture({ io = true, cache = new Map(), historyResponse = async () => h
     },
     historyRequests: () => requests.filter(url => url.includes('?per_page=100')),
     snapshotRequests: () => requests.filter(url => url.includes('/assets/data/github.json')),
+    listenerNames: () => Object.fromEntries([...listeners].map(([name, callbacks]) => [name, callbacks.map(callback => callback.name)])),
   };
 }
 
 async function settle() { await setImmediate(); await setImmediate(); }
+
+test('source and compressed GitHub scripts resolve snapshot data beside their deployed assets', async () => {
+  let originalNames;
+  for (const suffix of ['', '.min']) {
+    const script = await readFile(new URL('../../assets/js/github' + suffix + '.js', import.meta.url), 'utf8');
+    for (const prefix of ['', '/nested/site']) {
+      const app = fixture({ io: false, script, scriptURL: 'https://site.test' + prefix + '/assets/js/github' + suffix + '.js?v=123#cached' });
+      app.intersections();
+      await settle();
+      assert.deepEqual(app.requests, ['https://site.test' + prefix + '/assets/data/github.json']);
+      assert.equal(app.fields.get('tag').textContent, 'v1.2.3-abcdef0');
+      const names = app.listenerNames();
+      assert.ok(names.scroll.includes('check'), 'the fallback callback must retain its runtime name');
+      originalNames ||= names;
+      assert.deepEqual(names, originalNames, 'compression must preserve all fallback callback names');
+    }
+  }
+});
 
 test('the first screen keeps releases and repository metadata with one same-origin request and no GitHub connection', async () => {
   const app = fixture();

@@ -6,7 +6,7 @@ import vm from 'node:vm';
 
 const source = readFileSync(new URL('../../assets/js/main.js', import.meta.url), 'utf8');
 
-function bootstrap(styles = [], { holdFont, modules = [], failures = {}, preloadFailures = [], styleFailures = 0 } = {}) {
+function bootstrap(styles = [], { holdFont, modules = [], failures = {}, preloadFailures = [], styleFailures = 0, script = source, scriptURL = 'https://example.test/assets/js/main.js?v=123456abcdef', fontVersion } = {}) {
   const ready = [], queued = [];
   const state = { phoneHandlers: false, restricted: false, phoneStarts: 0, fontLinks: [], classes: new Set(), moduleRequests: [], moduleRuns: [], preloads: [], styleLinks: [] };
   const NP = {
@@ -18,7 +18,7 @@ function bootstrap(styles = [], { holdFont, modules = [], failures = {}, preload
   };
   const document = {
     readyState: 'loading',
-    currentScript: { src: 'https://example.test/assets/js/main.js?v=123456abcdef' },
+    currentScript: { src: scriptURL, dataset: { fontVersion } },
     createElement(tag) { return tag === 'link' ? Object.assign(stylesheet(), { tag }) : { tag, dataset: {}, remove() {} }; },
     head: {
       appendChild(link) {
@@ -56,7 +56,7 @@ function bootstrap(styles = [], { holdFont, modules = [], failures = {}, preload
     disconnect() {}
   }
   const location = { hash: '' };
-  vm.runInNewContext(source, {
+  vm.runInNewContext(script, {
     window: { NP, IntersectionObserver, location }, document, IntersectionObserver, location,
     setTimeout: callback => queued.push(callback),
     clearTimeout() {},
@@ -108,6 +108,17 @@ function stylesheet(ready = false) {
     },
   };
 }
+
+test('source and compressed main scripts keep lazy font URLs and startup callback names', async () => {
+  for (const suffix of ['', '.min']) {
+    const script = readFileSync(new URL('../../assets/js/main' + suffix + '.js', import.meta.url), 'utf8');
+    const run = bootstrap([], { script, scriptURL: 'https://example.test/nested/site/assets/js/main' + suffix + '.js?v=123#cached', fontVersion: '123456abcdef' });
+    run.start();
+    await run.drain(run.NP.preparePreviews());
+    assert.deepEqual(run.state.fontLinks.map(link => link.href), ['content', 'desktop', 'phone'].map(name => 'https://example.test/nested/site/assets/css/' + name + '-fonts.css?v=123456abcdef'));
+    assert.equal(run.state.phoneStarts, 1);
+  }
+});
 
 test('every preview startup yield keeps installed phone handlers behind preview restrictions', async () => {
   const run = bootstrap();

@@ -22,7 +22,7 @@ for (const language of ['', 'en/']) {
     const preloads = [...html.matchAll(/<link\b[^>]*href="([^"]+)"[^>]*as="script"[^>]*>/g)];
     assert.equal(preloads.length, 2);
     for (const [, href] of preloads) {
-      assert.match(href, /\/(core|motion)\.js\?v=[a-f0-9]{12}$/);
+      assert.match(href, /\/(core|motion)(?:\.min)?\.js\?v=[a-f0-9]{12}$/);
       const script = [...html.matchAll(/<script\b[^>]*>/g)].map(match => match[0]).find(tag => tag.includes(`src="${href}"`));
       assert.ok(script && /\bdefer(?:\s|=)/.test(script) && script.includes('fetchpriority="high"'), 'preloading must not change execution order or fetch a second script version');
       const asset = new URL(href, new URL(language + 'index.html', root));
@@ -57,7 +57,7 @@ for (const language of ['', 'en/']) {
 
   test(`lazy font styles are bound to the HTML generation ${language || 'zh/'}`, async () => {
     const html = await readFile(new URL(language + 'index.html', root), 'utf8');
-    const main = html.match(/<script\b[^>]*\bsrc="[^" ]*\/main\.js[^" ]*"[^>]*>/)?.[0];
+    const main = html.match(/<script\b[^>]*\bsrc="[^" ]*\/main(?:\.min)?\.js[^" ]*"[^>]*>/)?.[0];
     assert.ok(main);
     assert.equal(main.match(/data-font-version="([a-f0-9]+)"/)?.[1], await fontStyleVersion());
     const styles = [...html.matchAll(/href="((?:\.\.\/)?assets\/css\/(?:content|desktop|phone)-fonts\.css[^"#]*)"/g)];
@@ -137,8 +137,11 @@ test('cached HTML and core remain usable with a refreshed main script', async ()
   // 复现旧页面的急切加载顺序与 core API，不依赖仓库外的历史快照服务
   const main = '<script defer src="assets/js/main.js"></script>';
   const html = currentHtml.replace(/\?v=[a-f0-9]+/g, '')
+    .replace(/\/((?:core|motion|github|demos|main))\.min\.js/g, '/$1.js')
     .replace(/type="application\/x-np-preview" data-np-module=/g, 'defer src=')
-    .replace(main, '').replace('</head>', main + '\n</head>');
+    .replace(/<script\b[^>]*\bsrc="assets\/js\/main\.js"[^>]*><\/script>/g, '')
+    .replace('</head>', main + '\n</head>');
+  assert.equal((html.match(/\bsrc="assets\/js\/main\.js"/g) || []).length, 1, 'the cached fixture must execute main once');
   const core = currentCore + '\ndelete window.NP.retargetScroll; delete window.NP.smoothScroll.isAnimating;';
   const browser = await chromium.launch({ executablePath, headless: true });
   try {

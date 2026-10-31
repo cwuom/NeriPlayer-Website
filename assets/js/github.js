@@ -11,7 +11,7 @@
   var REPO = 'cwuom/NeriPlayer';
   var DREPO = 'cwuom/NeriPlayer-Desktop';
 
-  var dataURL = document.currentScript ? document.currentScript.src.replace(/js\/github\.js(?:[?#].*)?$/, 'data/github.json') : (NP.en ? '../' : '') + 'assets/data/github.json';
+  var dataURL = document.currentScript ? document.currentScript.src.replace(/js\/github(?:\.min)?\.js(?:[?#].*)?$/, 'data/github.json') : (NP.en ? '../' : '') + 'assets/data/github.json';
   var snapshotRequest;
 
   function readCache(key) {
