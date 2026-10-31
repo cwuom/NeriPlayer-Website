@@ -29,7 +29,7 @@ function snapshot() {
   };
 }
 
-function fixture({ io = true, cache = new Map(), historyResponse = async () => history(), snapshotResponse = async () => snapshot(), en = false, script = source, scriptURL = 'https://site.test/assets/js/github.js?v=test' } = {}) {
+function fixture({ io = true, cache = new Map(), historyResponse = async () => history(), snapshotResponse = async () => snapshot(), en = false, script = source, scriptURL = 'https://site.test/assets/js/github.js?v=test', initialize = true } = {}) {
   const requests = [], watchers = [], listeners = new Map(), fields = new Map();
   const on = (type, callback) => listeners.set(type, [...listeners.get(type) || [], callback]);
   const off = (type, callback) => listeners.set(type, (listeners.get(type) || []).filter(fn => fn !== callback));
@@ -73,7 +73,7 @@ function fixture({ io = true, cache = new Map(), historyResponse = async () => h
     return { ok: true, json: async () => value };
   };
   vm.runInNewContext(script, { window, IntersectionObserver: io ? IntersectionObserver : undefined, document: { currentScript: { src: scriptURL } }, navigator: { userAgent: 'Android', platform: 'Linux armv8' }, localStorage, fetch, setTimeout, clearTimeout });
-  NP.github.init();
+  if (initialize) NP.github.init();
   return {
     NP, requests, cache, fields, panes, stubs, emit,
     intersections() {
@@ -86,6 +86,23 @@ function fixture({ io = true, cache = new Map(), historyResponse = async () => h
 }
 
 async function settle() { await setImmediate(); await setImmediate(); }
+
+test('release data starts before layout initialization and is reused without early UI writes', async () => {
+  for (const offline of [false, true]) {
+    const app = fixture({ initialize: false, snapshotResponse: async () => {
+      if (offline) throw new Error('offline');
+      return snapshot();
+    } });
+    assert.deepEqual(app.requests, ['https://site.test/assets/data/github.json']);
+    await settle();
+    assert.ok([...app.fields.values()].every(field => field.textContent === '—'));
+    assert.equal(app.NP.github.android, undefined);
+    app.NP.github.init();
+    await settle();
+    assert.equal(app.requests.length, 1, 'initialization must share the bounded request, including failure');
+    assert.equal(app.fields.get('tag').textContent, offline ? '—' : 'v1.2.3-abcdef0');
+  }
+});
 
 test('source and compressed GitHub scripts resolve snapshot data beside their deployed assets', async () => {
   let originalNames;
