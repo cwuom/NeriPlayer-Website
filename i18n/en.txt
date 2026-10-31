@@ -456,9 +456,9 @@ Published after each batch of features, with packages for Windows, macOS and Lin
 # 想体验还没发布的改动，可以到 Artifacts 工作流挑一次成功的构建，下载对应平台的产物；需要登录 GitHub，先解压外层压缩包再安装。
 To try changes that haven’t shipped yet, pick a successful run of the Artifacts workflow and download the build for your platform. You need to be signed in to GitHub; unzip the outer archive before installing.
 
-@b1252c5426  html  p.links
-# <a class="link" href="https://github.com/cwuom/NeriPlayer-Desktop/actions/workflows/artifacts.yml" target="_blank" rel="noopener">Artifacts 工作流 ↗</a><a class="link" href="https://t.me/ouom_pub" target="_blank" rel="noopener">Telegram @ouom_pub ↗</a>
-<a class="link" href="https://github.com/cwuom/NeriPlayer-Desktop/actions/workflows/artifacts.yml" target="_blank" rel="noopener">Artifacts workflow ↗</a><a class="link" href="https://t.me/ouom_pub" target="_blank" rel="noopener">Telegram @ouom_pub ↗</a>
+@74031ff3dd  html  p.links
+# <a class="link" href="https://github.com/cwuom/NeriPlayer-Desktop/actions/workflows/artifacts.yml" target="_blank" rel="noopener">Artifacts 工作流 ↗</a><a class="link" href="https://t.me/neriplayer_ci" target="_blank" rel="noopener">Telegram @neriplayer_ci ↗</a>
+<a class="link" href="https://github.com/cwuom/NeriPlayer-Desktop/actions/workflows/artifacts.yml" target="_blank" rel="noopener">Artifacts workflow ↗</a><a class="link" href="https://t.me/neriplayer_ci" target="_blank" rel="noopener">Telegram @neriplayer_ci ↗</a>
 
 @9df00ed344  html  pre.mono#buildCmdD
 # <code><span class="t-dim"># 克隆仓库与歌词子模块</span>
