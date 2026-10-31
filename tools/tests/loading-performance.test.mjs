@@ -7,6 +7,44 @@ const origin = process.env.SITE_URL || 'http://localhost:6060';
 const executablePath = process.env.CHROME || '/Applications/Microsoft Edge.app/Contents/MacOS/Microsoft Edge';
 
 for (const language of ['/', '/en/']) {
+  test(`hero animation starts before full styles without measuring undecorated sections ${language}`, async () => {
+    const browser = await chromium.launch({ executablePath, headless: true });
+    let release;
+    const pending = new Promise(resolve => { release = resolve; });
+    try {
+      const page = await browser.newPage({ viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true, reducedMotion: 'no-preference' });
+      const errors = [];
+      page.on('pageerror', error => errors.push(error.message));
+      await page.route('**/__live', route => route.abort());
+      await page.route('https://api.github.com/**', route => route.fulfill({ json: {} }));
+      await page.route('**/site.css', async route => { await pending; await route.continue(); });
+      await page.addInitScript(() => {
+        window.prematureSectionReads = 0;
+        const rect = Element.prototype.getBoundingClientRect;
+        Element.prototype.getBoundingClientRect = function () {
+          if (this.matches('.station, .station *') && document.querySelector('link[data-deferred-style]')?.media !== 'all') prematureSectionReads++;
+          return rect.call(this);
+        };
+      });
+      await page.goto(origin + language, { waitUntil: 'domcontentloaded' });
+      await page.waitForFunction(() => NP.shellReady && document.querySelector('.hero.is-intro'));
+      assert.equal(await page.evaluate(() => prematureSectionReads), 0, 'critical shell startup must not measure sections whose styles have not arrived');
+      assert.equal(await page.locator('.station .h2 .sw').count(), 0);
+      assert.equal(await page.locator('.crayon__art').evaluate(el => getComputedStyle(el).animationName), 'floaty');
+      await page.locator('#burger').tap();
+      assert.equal(await page.locator('#burger').getAttribute('aria-expanded'), 'true');
+      await page.locator('#burger').tap();
+      release();
+      await page.waitForFunction(() => NP.contentReady);
+      await page.locator('#download-title').scrollIntoViewIfNeeded();
+      await page.waitForFunction(() => document.querySelector('#download-title .sw'));
+      await page.evaluate(() => NP.preparePreviews());
+      await page.waitForFunction(() => NP.booted);
+      assert.equal(await page.locator('.hero .display__line > .dl-in > .dl-in').count(), 0, 'page initialization must not wrap the hero again');
+      assert.deepEqual(errors, []);
+    } finally { release(); await browser.close(); }
+  });
+
   test(`first-screen animation and menu remain usable while preview scripts load ${language}`, async () => {
     const browser = await chromium.launch({ executablePath, headless: true });
     let release;

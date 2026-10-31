@@ -90,6 +90,7 @@
     Array.prototype.forEach.call(parent.children, function (c, i) { c.style.setProperty('--i', i); });
   }
   var decorationGroups = [];
+  var decorationPlanned = false;
   function decorationRoot(el) { return el.closest('section, footer') || el; }
   function planDecoration(el, apply) {
     var root = decorationRoot(el);
@@ -104,6 +105,8 @@
     group.jobs = [];
   }
   function decorate() {
+    if (decorationPlanned) return;
+    decorationPlanned = true;
     $$('.h2, .footer__motto').forEach(function (h) {
       planDecoration(h, function () {
         h.removeAttribute('data-reveal');
@@ -146,11 +149,13 @@
   }
 
   /* ---------- 进入视口 ---------- */
-  function observe() {
+  function observe(heroOnly) {
     var selector = '[data-reveal], [data-stagger], [data-split], [data-write], [data-stamp], .eyebrow, .draw, .ul';
+    function included(el) { return !!el.closest('.hero') === !!heroOnly; }
     if (!('IntersectionObserver' in window) || reduced) {
-      decorationGroups.forEach(prepareDecoration);
-      $$(selector).forEach(function (el) { el.classList.add('is-in'); });
+      decorationGroups.filter(function (group) { return included(group.root); }).forEach(prepareDecoration);
+      if (heroOnly) $$('.hero').forEach(function (root) { $$(selector, root).forEach(function (el) { el.classList.add('is-in'); }); });
+      else $$(selector).filter(included).forEach(function (el) { el.classList.add('is-in'); });
       return;
     }
     var io = new IntersectionObserver(function (entries) {
@@ -166,6 +171,7 @@
       if (root.matches(selector)) io.observe(root);
       $$(selector, root).forEach(function (el) { io.observe(el); });
     }
+    if (heroOnly) { $$('.hero').forEach(register); return; }
     var near = new IntersectionObserver(function (entries) {
       var prepared = [];
       entries.forEach(function (entry) {
@@ -184,10 +190,12 @@
       }, 0); });
     }, { rootMargin: '1200px 0px' });
     decorationGroups.forEach(function (group) {
+      if (!included(group.root)) return;
       if (group.prepared) register(group.root);
       else near.observe(group.root);
     });
     $$(selector).forEach(function (el) {
+      if (!included(el)) return;
       if (!decorationGroups.some(function (group) { return group.root === decorationRoot(el); })) io.observe(el);
     });
   }
@@ -560,31 +568,47 @@
     });
   }
 
+  function startHero() {
+    /* 开场等标题字体就位（最多 1.2 秒），否则会先闪一下回退字体再换 */
+    var started = false;
+    var start = function () {
+      if (started) return;
+      started = true;
+      requestAnimationFrame(function () {
+        setTimeout(function () { var h = $('.hero'); if (h) h.classList.add('is-intro'); }, 60);
+      });
+    };
+    var h1 = $('.hero h1');
+    if (document.fonts && document.fonts.load && h1) {
+      var sample = (h1.textContent || 'NeriPlayer').replace(/\s+/g, '').slice(0, 24);
+      Promise.all([
+        document.fonts.load('400 64px "Fraunces Critical"', sample),
+        document.fonts.load('italic 400 64px "Fraunces Critical"', sample),
+        document.fonts.load('400 64px "NP Serif"', sample),
+      ]).then(start, start);
+      setTimeout(start, 1200);
+    } else start();
+  }
+
+  var heroInitialized = false;
+  var motionInitialized = false;
+  function initHero() {
+    if (heroInitialized) return;
+    heroInitialized = true;
+    if (!reduced) decorate();
+    observe(true);
+    startHero();
+  }
+
   NP.motion = {
+    initHero: initHero,
     init: function () {
-      if (!reduced) decorate();
-      observe();
+      if (motionInitialized) return;
+      motionInitialized = true;
+      initHero();
+      observe(false);
       initScroll();
       initSegs();
-      /* 开场等标题字体就位（最多 1.2 秒），否则会先闪一下回退字体再换 */
-      var started = false;
-      var start = function () {
-        if (started) return;
-        started = true;
-        requestAnimationFrame(function () {
-          setTimeout(function () { var h = $('.hero'); if (h) h.classList.add('is-intro'); }, 60);
-        });
-      };
-      var h1 = $('.hero h1');
-      if (document.fonts && document.fonts.load && h1) {
-        var sample = (h1.textContent || 'NeriPlayer').replace(/\s+/g, '').slice(0, 24);
-        Promise.all([
-          document.fonts.load('400 64px "Fraunces Critical"', sample),
-          document.fonts.load('italic 400 64px "Fraunces Critical"', sample),
-          document.fonts.load('400 64px "NP Serif"', sample),
-        ]).then(start, start);
-        setTimeout(start, 1200);
-      } else start();
     },
     initTheme: initTheme,
   };

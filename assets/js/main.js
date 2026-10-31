@@ -139,7 +139,6 @@
       window.addEventListener('keydown', function (e) {
         if (/^(ArrowUp|ArrowDown|PageUp|PageDown|Home|End| )$/.test(e.key) && !e.altKey && !e.ctrlKey && !e.metaKey) cancelAnchor();
       });
-      this.measure();
     },
     measure: function () {
       this.stops = $$('[data-station]').map(function (el) {
@@ -278,6 +277,19 @@
   }
 
   function finishShell() {
+    if (NP.motion.initHero) NP.motion.initHero();
+    NP.addFrame(function (dt) { NP.smoothScroll.update(dt); }, 0);
+    NP.addFrame(function (dt) { NP.scroll.update(dt); }, 1);
+    NP.addFrame(function () { nav.update(); }, 6);
+    NP.start();
+    NP.shellReady = true;
+    // 下方内容先应用完整样式，再建立观察器和读取布局，首屏动画不必等它们
+    stylesLoaded.then(function () {
+      requestAnimationFrame(function () { setTimeout(finishContent, 0); });
+    });
+  }
+
+  function finishContent() {
     NP.motion.init();
     NP.github.init();
     NP.onResize(relayout);
@@ -304,12 +316,7 @@
     });
     window.addEventListener('load', relayout);
 
-    NP.addFrame(function (dt) { NP.smoothScroll.update(dt); }, 0);
-    NP.addFrame(function (dt) { NP.scroll.update(dt); }, 1);
-    NP.addFrame(function () { nav.update(); }, 6);
-
-    NP.start();
-    NP.shellReady = true;
+    NP.contentReady = true;
   }
 
   var previewsStarted = false;

@@ -185,7 +185,7 @@ async function visit(path, run, { noIO = false, failHistoryOnce = false } = {}) 
   try {
     if (noIO) await page.addInitScript(() => { delete window.IntersectionObserver; });
     await page.goto((process.env.SITE_URL || 'http://localhost:6068') + path, { waitUntil: 'domcontentloaded' });
-    await page.waitForFunction(() => window.NP?.baseReady && NP.github.android.release && NP.github.desktop.release);
+    await page.waitForFunction(() => window.NP?.baseReady && NP.github.android?.release && NP.github.desktop?.release);
     await run(page, requests);
     assert.deepEqual(errors, []);
   } finally { await page.close(); }

@@ -165,3 +165,105 @@ test('real font loading and viewport changes retain the original parallax geomet
     assert.ok(Math.abs(geometry.actual - geometry.expected) < .2, JSON.stringify(geometry));
   });
 });
+
+async function stages(options, run) {
+  browser ||= await chromium.launch({ executablePath: process.env.CHROME || '/Applications/Microsoft Edge.app/Contents/MacOS/Microsoft Edge', headless: true });
+  const page = await browser.newPage({ viewport: { width: 390, height: 844 }, hasTouch: true, isMobile: true, reducedMotion: options.reduced ? 'reduce' : 'no-preference' });
+  let releaseStyles;
+  const styles = new Promise(resolve => { releaseStyles = resolve; });
+  const errors = [];
+  page.on('pageerror', error => errors.push(error.message));
+  await page.route('**/__live', route => route.abort());
+  await page.route('https://api.github.com/**', route => route.fulfill({ json: {} }));
+  // 只替换启动入口，两个阶段都执行真实 motion 模块，样式按实际网络完成顺序释放
+  await page.route('**/assets/js/main.js*', route => route.fulfill({ contentType: 'text/javascript', body: 'window.motionComponentFixture = true;' }));
+  await page.route('**/assets/css/site.css', async route => { await styles; await route.continue().catch(() => {}); });
+  await page.addInitScript(({ noObserver }) => {
+    window.motionOutsideReads = 0;
+    window.motionHeroObservations = 0;
+    window.motionHeroFontLoads = [];
+    const rect = Element.prototype.getBoundingClientRect;
+    Element.prototype.getBoundingClientRect = function (...args) {
+      const section = this.closest('section');
+      if (section && !section.classList.contains('hero')) window.motionOutsideReads++;
+      return rect.apply(this, args);
+    };
+    const load = document.fonts.load.bind(document.fonts);
+    document.fonts.load = function (...args) { window.motionHeroFontLoads.push(args); return load(...args); };
+    if (noObserver) delete window.IntersectionObserver;
+    else {
+      const NativeObserver = window.IntersectionObserver;
+      window.IntersectionObserver = class extends NativeObserver {
+        observe(target) {
+          if (target.closest('.hero')) window.motionHeroObservations++;
+          super.observe(target);
+        }
+      };
+    }
+  }, { noObserver: options.noObserver });
+  try {
+    await page.goto(origin + (options.path || '/'), { waitUntil: 'domcontentloaded' });
+    await page.waitForFunction(() => window.motionComponentFixture && window.NP?.motion);
+    await run(page, async () => {
+      releaseStyles();
+      await page.waitForFunction(() => document.querySelector('link[data-deferred-style]').sheet);
+      await page.evaluate(() => new Promise(resolve => requestAnimationFrame(() => setTimeout(resolve, 0))));
+    });
+    assert.deepEqual(errors, []);
+  } finally { releaseStyles(); await page.close(); }
+}
+
+for (const path of ['/', '/en/']) {
+  test('the hero stage stays independent of full page CSS and initializes only once ' + path, async () => {
+    await stages({ path }, async (page, releaseStyles) => {
+      assert.equal(await page.evaluate(() => typeof NP.motion.initHero), 'function');
+      await page.evaluate(() => { NP.measure(true); NP.shellReady = true; NP.motion.initHero(); NP.motion.initHero(); NP.start(); });
+      await page.waitForFunction(() => document.querySelector('.hero').classList.contains('is-intro'));
+      assert.equal(await page.locator('.hero .display__line > .dl-in').count(), 3);
+      assert.equal(await page.locator('.dl-in .dl-in').count(), 0);
+      assert.equal(await page.locator('#download-title').getAttribute('data-split'), null);
+      assert.equal(await page.locator('#download .is-in').count(), 0, 'the early stage must not reveal unformatted components');
+      assert.equal(await page.locator('.seg__ind,.src__progress').count(), 0, 'the hero must not initialize page-wide geometry helpers');
+      assert.equal(await page.evaluate(() => motionOutsideReads), 0);
+      const before = await page.evaluate(() => ({ observations: motionHeroObservations, fonts: motionHeroFontLoads.length }));
+      assert.ok(before.observations > 0);
+      assert.equal(before.fonts, 3);
+      await releaseStyles();
+      await page.evaluate(() => { NP.motion.init(); NP.motion.initHero(); NP.motion.init(); });
+      await page.waitForFunction(() => document.getElementById('download-title').hasAttribute('data-split'));
+      assert.equal(await page.locator('.hero .display__line > .dl-in').count(), 3);
+      assert.equal(await page.locator('.dl-in .dl-in').count(), 0);
+      assert.deepEqual(await page.evaluate(() => ({ observations: motionHeroObservations, fonts: motionHeroFontLoads.length })), before, 'the full stage must reuse the original hero reveal and font barrier');
+    });
+  });
+}
+
+test('the legacy motion entry still initializes the hero and the complete page', async () => {
+  await stages({}, async (page, releaseStyles) => {
+    await releaseStyles();
+    await page.evaluate(() => { NP.measure(true); NP.shellReady = true; NP.motion.init(); NP.motion.init(); NP.start(); });
+    await page.waitForFunction(() => document.querySelector('.hero').classList.contains('is-intro') && document.getElementById('download-title').hasAttribute('data-split'));
+    assert.equal(await page.locator('.hero .display__line > .dl-in').count(), 3);
+    assert.equal(await page.locator('.dl-in .dl-in').count(), 0);
+    assert.equal(await page.evaluate(() => motionHeroFontLoads.length), 3);
+  });
+});
+
+for (const options of [{ reduced: true }, { noObserver: true }]) {
+  test('staged motion preserves the full fallback ' + (options.reduced ? 'for reduced motion' : 'without IntersectionObserver'), async () => {
+    await stages(options, async (page, releaseStyles) => {
+      assert.equal(await page.evaluate(() => typeof NP.motion.initHero), 'function');
+      await page.evaluate(() => { NP.measure(true); NP.shellReady = true; NP.motion.initHero(); NP.start(); });
+      assert.equal(await page.locator('#stack-title').evaluate(el => el.classList.contains('is-in')), false);
+      await releaseStyles();
+      await page.evaluate(() => { NP.motion.init(); NP.motion.init(); });
+      assert.equal(await page.locator('#stack-title').evaluate(el => el.classList.contains('is-in')), true);
+      if (options.reduced) assert.equal(await page.locator('.sw,.dl-in').count(), 0);
+      else {
+        assert.ok(await page.locator('#stack-title .sw').count() > 0);
+        assert.equal(await page.locator('.hero .display__line > .dl-in').count(), 3);
+        assert.equal(await page.locator('.sw .sw,.dl-in .dl-in').count(), 0);
+      }
+    });
+  });
+}
